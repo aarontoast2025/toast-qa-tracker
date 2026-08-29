@@ -315,6 +315,223 @@
         aiToolsMenu.style.display = "none";
     });
 
+    // --- AI Modal Helpers ---
+    var createAccordion = function(title, contentNodes, isOpen) {
+        var container = createElement("div");
+        container.style.cssText = "border:1px solid #e2e8f0;border-radius:6px;margin-bottom:12px;overflow:hidden";
+        var aHeader = createElement("div");
+        aHeader.style.cssText = "padding:10px 14px;background:#f8fafc;cursor:pointer;font-weight:600;font-size:13px;color:#1e293b;display:flex;justify-content:space-between;align-items:center;user-select:none";
+        aHeader.innerHTML = "<span>" + title + "</span><span style='font-size:11px;color:#94a3b8'>" + (isOpen ? "▲" : "▼") + "</span>";
+        var aBody = createElement("div");
+        aBody.style.cssText = "padding:14px;border-top:1px solid #e2e8f0;background:#ffffff;display:" + (isOpen ? "block" : "none");
+        if(Array.isArray(contentNodes)) {
+            contentNodes.forEach(function(n){ aBody.appendChild(n); });
+        } else {
+            aBody.appendChild(contentNodes);
+        }
+        addListener(aHeader, "click", function(){
+            var isHidden = aBody.style.display === "none";
+            aBody.style.display = isHidden ? "block" : "none";
+            aHeader.lastChild.textContent = isHidden ? "▲" : "▼";
+        });
+        container.appendChild(aHeader);
+        container.appendChild(aBody);
+        return { container: container, body: aBody };
+    };
+
+    // --- Case Notes Checker Modal ---
+    var showCaseNotesCheckerModal = function() {
+        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:rgba(0,0,0,0.4); pointer-events:auto; align-items:center");
+        var pModal = createElement("div", sModal + "; height:auto; max-height:85vh; width:580px; cursor:default; user-select:auto");
+        var pHeader = createElement("div", sHeader + "; cursor:move");
+        pHeader.innerHTML = "<span>📝 Case Notes Checker (Gemini AI)</span>";
+        var pClose = createElement("span", "cursor:pointer;font-size:18px;color:#94a3b8");
+        pClose.textContent = "×";
+        addListener(pClose, "click", function(){ pOverlay.remove(); });
+        pHeader.appendChild(pClose);
+
+        var pBody = createElement("div", "padding:18px 20px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;user-select:text");
+
+        // Input Accordion
+        var divInputs = createElement("div", "display:flex;flex-direction:column;gap:12px");
+        var grpSubject = createElement("div");
+        grpSubject.appendChild(createElement("label", sLabel)).textContent = "Subject Line";
+        var inpSubject = createElement("input", sInput);
+        inpSubject.placeholder = "Enter case subject...";
+        grpSubject.appendChild(inpSubject);
+        divInputs.appendChild(grpSubject);
+
+        var grpNotes = createElement("div");
+        grpNotes.appendChild(createElement("label", sLabel)).textContent = "Advocate Case Notes";
+        var txtNotes = createElement("textarea", sTextarea + "; height:140px");
+        txtNotes.placeholder = "Paste advocate case notes here...";
+        grpNotes.appendChild(txtNotes);
+        divInputs.appendChild(grpNotes);
+
+        var inputAccordion = createAccordion("Input Data (Subject & Notes)", divInputs, true);
+        pBody.appendChild(inputAccordion.container);
+
+        // Results Accordion
+        var divOutput = createElement("div", "font-size:13px;line-height:1.6;color:#1e293b;user-select:text");
+        var resPlaceholder = createElement("div");
+        resPlaceholder.innerHTML = "<div style='color:#94a3b8;font-style:italic;padding:18px;text-align:center;background:#f8fafc;border-radius:6px;border:1px dashed #cbd5e1'>Analysis results will appear here after clicking Generate...</div>";
+        divOutput.appendChild(resPlaceholder);
+        var outputAccordion = createAccordion("Analysis Results", divOutput, true);
+        pBody.appendChild(outputAccordion.container);
+
+        var pFooter = createElement("div", sFooter);
+        var pBtnCancel = createElement("button", sBtnCancel);
+        pBtnCancel.textContent = "Close";
+        addListener(pBtnCancel, "click", function(){ pOverlay.remove(); });
+        pFooter.appendChild(pBtnCancel);
+
+        var pBtnGen = createElement("button", sBtnGenerate);
+        pBtnGen.textContent = "Generate Analysis";
+        addListener(pBtnGen, "click", function(){
+            var transcript = extractTranscript();
+            var subject = inpSubject.value.trim();
+            var notes = txtNotes.value.trim();
+
+            if(!notes) return showToast("Please paste the Case Notes first.", true);
+
+            pBtnGen.disabled = true;
+            pBtnGen.textContent = "Analyzing... ⏳";
+            resPlaceholder.innerHTML = "<div style='padding:20px;text-align:center;color:#2563eb;font-weight:600'>🚀 Gemini is auditing case notes against transcript...</div>";
+
+            var prompt = "You are a QA specialist auditing support case notes against the interaction transcript.\n\n" +
+                         "=== TRANSCRIPT ===\n" + (transcript || "No transcript available on page.") + "\n\n" +
+                         "=== SUBJECT LINE ===\n" + (subject || "N/A") + "\n\n" +
+                         "=== CASE NOTES ===\n" + notes + "\n\n" +
+                         "Audit the case notes for:\n" +
+                         "1. ACCURACY: Did the agent correctly capture the issue and resolution?\n" +
+                         "2. COMPLETENESS: Are troubleshooting steps, internal checks, and customer responses thoroughly documented?\n" +
+                         "3. FORMATTING: Are notes clear and easy to follow?\n\n" +
+                         "Format your output clearly with:\n" +
+                         "SUMMARY: [1-2 concise sentences summarizing the issue]\n" +
+                         "STRENGTHS: [Key positive points]\n" +
+                         "COACHING / OPPORTUNITIES: [Specific gaps or improvements]\n" +
+                         "RECOMMENDED REVISED NOTES: [Polished version of the notes]";
+
+            callGemini(prompt, "You are an expert QA evaluator for customer support.")
+                .then(function(resText){
+                    resPlaceholder.innerHTML = "<div style='white-space:pre-wrap;padding:6px;user-select:text;cursor:text'>" + resText + "</div>";
+                    var sumMatch = resText.match(/SUMMARY:?\s*([\s\S]*?)(?:\n\n|STRENGTHS|$)/i);
+                    if (sumMatch && sumMatch[1] && txtIssue) {
+                        txtIssue.value = sumMatch[1].trim();
+                        txtIssue.dispatchEvent(new Event('input'));
+                    }
+                    showToast("Case notes analysis complete!", false);
+                    inputAccordion.body.style.display = "none";
+                    inputAccordion.container.firstChild.lastChild.textContent = "▼";
+                })
+                .catch(function(err){
+                    resPlaceholder.innerHTML = "<div style='color:#ef4444;padding:15px;text-align:center'>❌ " + err.message + "</div>";
+                    showToast(err.message, true);
+                })
+                .finally(function(){
+                    pBtnGen.disabled = false;
+                    pBtnGen.textContent = "Generate Analysis";
+                });
+        });
+        pFooter.appendChild(pBtnGen);
+
+        pModal.appendChild(pHeader);
+        pModal.appendChild(pBody);
+        pModal.appendChild(pFooter);
+        pOverlay.appendChild(pModal);
+        document.body.appendChild(pOverlay);
+    };
+
+    // --- Chat Checker Modal ---
+    var showChatCheckerModal = function() {
+        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:rgba(0,0,0,0.4); pointer-events:auto; align-items:center");
+        var pModal = createElement("div", sModal + "; height:auto; max-height:85vh; width:580px; cursor:default; user-select:auto");
+        var pHeader = createElement("div", sHeader + "; cursor:move");
+        pHeader.innerHTML = "<span>💬 Chat Checker (Gemini AI)</span>";
+        var pClose = createElement("span", "cursor:pointer;font-size:18px;color:#94a3b8");
+        pClose.textContent = "×";
+        addListener(pClose, "click", function(){ pOverlay.remove(); });
+        pHeader.appendChild(pClose);
+
+        var pBody = createElement("div", "padding:18px 20px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;user-select:text");
+
+        var divInputs = createElement("div", "display:flex;flex-direction:column;gap:12px");
+        var grpTranscript = createElement("div");
+        grpTranscript.appendChild(createElement("label", sLabel)).textContent = "Chat Transcript";
+        var txtChat = createElement("textarea", sTextarea + "; height:140px");
+        txtChat.value = extractTranscript();
+        txtChat.placeholder = "Paste or inspect chat transcript...";
+        grpTranscript.appendChild(txtChat);
+        divInputs.appendChild(grpTranscript);
+
+        var inputAccordion = createAccordion("Chat Transcript", divInputs, true);
+        pBody.appendChild(inputAccordion.container);
+
+        var divOutput = createElement("div", "font-size:13px;line-height:1.6;color:#1e293b;user-select:text");
+        var resPlaceholder = createElement("div");
+        resPlaceholder.innerHTML = "<div style='color:#94a3b8;font-style:italic;padding:18px;text-align:center;background:#f8fafc;border-radius:6px;border:1px dashed #cbd5e1'>Chat evaluation will appear here...</div>";
+        divOutput.appendChild(resPlaceholder);
+        var outputAccordion = createAccordion("Analysis Results", divOutput, true);
+        pBody.appendChild(outputAccordion.container);
+
+        var pFooter = createElement("div", sFooter);
+        var pBtnCancel = createElement("button", sBtnCancel);
+        pBtnCancel.textContent = "Close";
+        addListener(pBtnCancel, "click", function(){ pOverlay.remove(); });
+        pFooter.appendChild(pBtnCancel);
+
+        var pBtnGen = createElement("button", sBtnGenerate);
+        pBtnGen.textContent = "Evaluate Chat";
+        addListener(pBtnGen, "click", function(){
+            var chatText = txtChat.value.trim();
+            if(!chatText) return showToast("Chat transcript is empty.", true);
+
+            pBtnGen.disabled = true;
+            pBtnGen.textContent = "Evaluating... ⏳";
+            resPlaceholder.innerHTML = "<div style='padding:20px;text-align:center;color:#2563eb;font-weight:600'>🚀 Gemini is evaluating the chat interaction...</div>";
+
+            var prompt = "Evaluate this customer support chat transcript against QA standards:\n\n" +
+                         "=== CHAT TRANSCRIPT ===\n" + chatText + "\n\n" +
+                         "Audit each category:\n" +
+                         "1. GREETING & CLOSING: Professional opening, proper verification, polite sign-off.\n" +
+                         "2. EMPATHY & TONE: Professionalism, de-escalation, emotional intelligence.\n" +
+                         "3. RESOLUTION & PROBING: Effective problem-solving, root cause identification.\n" +
+                         "4. GRAMMAR & CLARITY: Punctuation, spelling, concise communication.\n\n" +
+                         "Format with:\n" +
+                         "- OVERALL EVALUATION (Pass / Needs Coaching)\n" +
+                         "- HIGHLIGHTS\n" +
+                         "- AREAS FOR IMPROVEMENT\n" +
+                         "- RECOMMENDED RESPONSES";
+
+            callGemini(prompt, "You are a senior QA chat evaluation specialist.")
+                .then(function(resText){
+                    resPlaceholder.innerHTML = "<div style='white-space:pre-wrap;padding:6px;user-select:text;cursor:text'>" + resText + "</div>";
+                    showToast("Chat audit complete!", false);
+                    inputAccordion.body.style.display = "none";
+                    inputAccordion.container.firstChild.lastChild.textContent = "▼";
+                })
+                .catch(function(err){
+                    resPlaceholder.innerHTML = "<div style='color:#ef4444;padding:15px;text-align:center'>❌ " + err.message + "</div>";
+                    showToast(err.message, true);
+                })
+                .finally(function(){
+                    pBtnGen.disabled = false;
+                    pBtnGen.textContent = "Evaluate Chat";
+                });
+        });
+        pFooter.appendChild(pBtnGen);
+
+        pModal.appendChild(pHeader);
+        pModal.appendChild(pBody);
+        pModal.appendChild(pFooter);
+        pOverlay.appendChild(pModal);
+        document.body.appendChild(pOverlay);
+    };
+
+    // Hook options to aiToolsMenu
+    aiToolsMenu.appendChild(createMenuItem("📝 Case Notes Checker", showCaseNotesCheckerModal, aiToolsMenu));
+    aiToolsMenu.appendChild(createMenuItem("💬 Chat Checker", showChatCheckerModal, aiToolsMenu));
+
     toolsContainer.appendChild(btnAiTools);
     toolsContainer.appendChild(aiToolsMenu);
     toolsContainer.appendChild(btnTools);
@@ -369,6 +586,10 @@
     inpInteractionId.value = getInteractionId();
     var wrapInteractionId = createFieldWrapper("🆔 Interaction ID", inpInteractionId);
 
+    var duplicateWarningBox = createElement("div");
+    duplicateWarningBox.style.cssText = "display:none;background:#fef2f2;border:1px solid #ef4444;border-radius:5px;padding:6px 10px;margin-top:6px;color:#991b1b;font-size:11px;font-weight:600;line-height:1.4";
+    wrapInteractionId.appendChild(duplicateWarningBox);
+
     // 3. Call ANI / DNIS
     var aniOpts = getAniDnisOptions();
     var defaultAni = (aniOpts.length > 1) ? aniOpts[1] : (aniOpts[0] || "");
@@ -420,16 +641,15 @@
     dateRow.appendChild(createFieldWrapper("📅 Date of Evaluation", inpDateEvaluation));
     headerFieldsContainer.appendChild(dateRow);
 
-    // Case Category
+    // Category & Sub-Category Row
+    var categoryRow = createElement("div", "grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;");
     var inpCategory = createElement("input", sInput);
-    inpCategory.placeholder = "Case Category (e.g. Payroll > ...)";
-    addListener(inpCategory, "keydown", function(e){
-        if(e.key === "Enter" && inpCategory.value.trim() === "") {
-            e.preventDefault();
-            inpCategory.value = "Payroll > ";
-        }
-    });
-    headerFieldsContainer.appendChild(createFieldWrapper("🗂️ Case Category", inpCategory, true));
+    inpCategory.placeholder = "Category (e.g. Payroll, POS)...";
+    var inpSubCategory = createElement("input", sInput);
+    inpSubCategory.placeholder = "Sub-Category (e.g. Direct Deposit)...";
+    categoryRow.appendChild(createFieldWrapper("🗂️ Category", inpCategory));
+    categoryRow.appendChild(createFieldWrapper("📂 Sub-Category", inpSubCategory));
+    headerFieldsContainer.appendChild(categoryRow);
 
     // Issue / Concern with ✨ Gemini Summary button
     var txtIssue = createElement("textarea", sTextarea);
@@ -967,6 +1187,7 @@
                 dateOfInteraction: inpDateInteraction.value,
                 evaluationDate: inpDateEvaluation.value,
                 caseCategory: inpCategory.value.trim(),
+                caseSubCategory: inpSubCategory.value.trim(),
                 issueConcern: txtIssue.value.trim(),
                 rubricId: (currentRubric && currentRubric.id) || '',
                 assignmentId: selectedAssignmentId || '',
@@ -997,10 +1218,13 @@
         });
     };
 
-    // Check for previous evaluation by Interaction ID
+    // Check for previous evaluation by Interaction ID & Duplicate Search
     var checkExistingRecord = function() {
         var iId = inpInteractionId.value.trim();
-        if(!iId || !API_BASE_URL) return;
+        if(!iId || !API_BASE_URL) {
+            duplicateWarningBox.style.display = "none";
+            return;
+        }
 
         var url = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
                   'api=1&action=check_existing&token=' + encodeURIComponent(API_TOKEN) +
@@ -1012,11 +1236,23 @@
                 if(result.success && result.data) {
                     var record = result.data;
                     existingRecordId = record.id;
-                    if(record.caseNo) inpCaseNo.value = record.caseNo;
-                    if(record.callDuration) inpDuration.value = record.callDuration;
-                    if(record.dateOfInteraction) inpDateInteraction.value = record.dateOfInteraction.split('T')[0];
-                    if(record.caseCategory) inpCategory.value = record.caseCategory;
-                    if(record.issueConcern) txtIssue.value = record.issueConcern;
+
+                    var evalDate = record.evaluationDate || record.submittedAt || record.date || "previous date";
+                    if (evalDate.includes('T')) evalDate = evalDate.split('T')[0];
+                    var qaName = record.qaName || record.qaEmail || "another QA";
+                    var score = (record.score !== undefined && record.score !== null) ? (" • Score: " + record.score) : "";
+
+                    // Display Duplicate Warning Box
+                    duplicateWarningBox.style.display = "block";
+                    duplicateWarningBox.innerHTML = "⚠️ <strong>Duplicate Interaction ID</strong><br>Already evaluated on " + evalDate + " by " + qaName + score + ".";
+                    showToast("⚠️ Warning: Duplicate Interaction ID found in Sheets!", true);
+
+                    if(record.caseNo && !inpCaseNo.value) inpCaseNo.value = record.caseNo;
+                    if(record.callDuration && !inpDuration.value) inpDuration.value = record.callDuration;
+                    if(record.dateOfInteraction && !inpDateInteraction.value) inpDateInteraction.value = record.dateOfInteraction.split('T')[0];
+                    if(record.caseCategory && !inpCategory.value) inpCategory.value = record.caseCategory;
+                    if(record.caseSubCategory && !inpSubCategory.value) inpSubCategory.value = record.caseSubCategory;
+                    if(record.issueConcern && !txtIssue.value) txtIssue.value = record.issueConcern;
 
                     if (record.rubricId) switchRubricById(record.rubricId);
 
@@ -1035,13 +1271,20 @@
                             }
                         } catch(e) {}
                     }
-                    showToast("Previous evaluation loaded from Sheets!", false);
+                } else {
+                    duplicateWarningBox.style.display = "none";
+                    duplicateWarningBox.innerHTML = "";
                 }
             })
             .catch(function(){});
     };
 
     addListener(inpInteractionId, 'blur', checkExistingRecord);
+    var idDebounceTimer = null;
+    addListener(inpInteractionId, 'input', function(){
+        clearTimeout(idDebounceTimer);
+        idDebounceTimer = setTimeout(checkExistingRecord, 800);
+    });
 
     // --- DOM Interaction & Generation ---
     var findGroupContainer = function(name) {
