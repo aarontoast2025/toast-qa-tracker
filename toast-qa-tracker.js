@@ -1210,7 +1210,79 @@
         }
     };
 
-    // --- Populate Agent Dropdown based on Date of Evaluation ---
+    // --- Name Resolution & Assignment Matching Helpers ---
+    var resolveName = function(a) {
+        if (!a) return "Agent";
+        if (a.agentSnapshot) {
+            var snap = typeof a.agentSnapshot === 'string' ? JSON.parse(a.agentSnapshot) : a.agentSnapshot;
+            if (snap && snap.displayName) return snap.displayName;
+            if (snap && snap.fullName) return formatToDisplayName(snap.fullName);
+        }
+        if (a.agentName && a.agentName !== a.agentEmail) {
+            return formatToDisplayName(a.agentName);
+        }
+        var matchedUser = globalUsers.find(function(u){
+            return (u.email || '').toLowerCase() === (a.agentEmail || '').toLowerCase();
+        });
+        if (matchedUser && matchedUser.name) return formatToDisplayName(matchedUser.name);
+        return formatEmailToName(a.agentEmail) || a.agentEmail || "Agent";
+    };
+
+    var findMatchingAssignmentForAdvocate = function(advocateName) {
+        if (!advocateName || !globalAssignments || globalAssignments.length === 0) return null;
+        var target = advocateName.toLowerCase().trim();
+
+        var matches = globalAssignments.filter(function(a) {
+            var agentLabel = resolveName(a).toLowerCase();
+            var rawName = String(a.agentName || '').toLowerCase();
+            var email = String(a.agentEmail || '').toLowerCase();
+            return agentLabel === target || agentLabel.includes(target) || target.includes(agentLabel) ||
+                   rawName === target || rawName.includes(target) || target.includes(rawName) ||
+                   (email && target.includes(email.split('@')[0]));
+        });
+
+        if (matches.length === 0) return null;
+        if (matches.length === 1) return matches[0];
+
+        // If multiple matches across dates: prefer Pending / Incomplete assignments
+        var pendingMatches = matches.filter(function(a){ return a.status !== 'Completed'; });
+        var pool = pendingMatches.length > 0 ? pendingMatches : matches;
+
+        // Sort by date closest to today
+        var todayStr = getLocalDateString();
+        pool.sort(function(a, b) {
+            var da = normalizeDateStr(a.date);
+            var db = normalizeDateStr(b.date);
+            return Math.abs(new Date(da) - new Date(todayStr)) - Math.abs(new Date(db) - new Date(todayStr));
+        });
+
+        return pool[0];
+    };
+
+    var autoSelectAssignmentAndDate = function() {
+        var pageAdvocateName = getAdvocateNameFromPage();
+        if (pageAdvocateName) {
+            var matchedAsg = findMatchingAssignmentForAdvocate(pageAdvocateName);
+            if (matchedAsg && matchedAsg.date) {
+                inpDateEvaluation.value = normalizeDateStr(matchedAsg.date);
+                updateAgentDropdown();
+                selectedAssignmentId = matchedAsg.id;
+                selAgent.value = "asg:" + matchedAsg.id;
+
+                if (matchedAsg.rubricId) {
+                    switchRubricById(matchedAsg.rubricId);
+                }
+                if (matchedAsg.evaluationType && selEvalType) {
+                    selEvalType.value = matchedAsg.evaluationType;
+                }
+                return true;
+            }
+        }
+        updateAgentDropdown();
+        return false;
+    };
+
+    // --- Populate Agent Dropdown based on Date of Evaluation (Date column in Assignments sheet) ---
     var updateAgentDropdown = function() {
         var selectedDate = inpDateEvaluation.value; // YYYY-MM-DD
         selAgent.innerHTML = "";
@@ -1221,23 +1293,6 @@
         selAgent.appendChild(defaultOpt);
 
         var pageAdvocateName = getAdvocateNameFromPage().toLowerCase();
-
-        var resolveName = function(a) {
-            if (a.agentSnapshot) {
-                var snap = typeof a.agentSnapshot === 'string' ? JSON.parse(a.agentSnapshot) : a.agentSnapshot;
-                if (snap && snap.displayName) return snap.displayName;
-                if (snap && snap.fullName) return formatToDisplayName(snap.fullName);
-            }
-            if (a.agentName && a.agentName !== a.agentEmail) {
-                return formatToDisplayName(a.agentName);
-            }
-            var matchedUser = globalUsers.find(function(u){
-                return (u.email || '').toLowerCase() === (a.agentEmail || '').toLowerCase();
-            });
-            if (matchedUser && matchedUser.name) return formatToDisplayName(matchedUser.name);
-            return formatEmailToName(a.agentEmail) || a.agentEmail || "Agent";
-        };
-
         var normSelectedDate = normalizeDateStr(selectedDate);
 
         // Filter assignments strictly matching the selected Date of Evaluation
@@ -1246,6 +1301,7 @@
         });
 
         if (dateAssignments.length > 0) {
+            var matchedOptFound = false;
             dateAssignments.forEach(function(a){
                 var opt = createElement("option");
                 opt.value = "asg:" + a.id;
@@ -1257,9 +1313,13 @@
                 opt.dataset.asgId = a.id;
                 opt.dataset.evalType = a.evaluationType || "Standard";
 
-                if (pageAdvocateName && agentLabel.toLowerCase().includes(pageAdvocateName)) {
+                if (selectedAssignmentId && a.id === selectedAssignmentId) {
+                    opt.selected = true;
+                    matchedOptFound = true;
+                } else if (!matchedOptFound && pageAdvocateName && (agentLabel.toLowerCase().includes(pageAdvocateName) || pageAdvocateName.includes(agentLabel.toLowerCase()))) {
                     opt.selected = true;
                     selectedAssignmentId = a.id;
+                    matchedOptFound = true;
                 }
                 selAgent.appendChild(opt);
             });
@@ -1303,6 +1363,14 @@
     // When Date of Evaluation changes:
     addListener(inpDateEvaluation, "change", function(){
         updateAgentDropdown();
+
+        // If an agent was automatically selected for the new date, trigger rubric / eval type sync
+        var selectedOpt = selAgent.selectedOptions[0];
+        if (selectedOpt && selectedOpt.value && selectedOpt.value.startsWith("asg:")) {
+            selectedAssignmentId = selectedOpt.dataset.asgId || "";
+            if (selectedOpt.dataset.rubricId) switchRubricById(selectedOpt.dataset.rubricId);
+            if (selectedOpt.dataset.evalType && selEvalType) selEvalType.value = selectedOpt.dataset.evalType;
+        }
 
         // Check if selected date is outside 2-month window
         var selDate = inpDateEvaluation.value;
@@ -1476,7 +1544,21 @@
                     var record = result.data;
                     existingRecordId = record.id;
 
-                    var evalDate = normalizeDateStr(record.dateOfEvaluation || record.evaluationDate || record.submittedAt || record.date || "");
+                    var asg = null;
+                    if (record.assignmentId) {
+                        asg = globalAssignments.find(function(a){ return String(a.id) === String(record.assignmentId); });
+                    }
+                    if (!asg && record.agentEmail) {
+                        asg = globalAssignments.find(function(a){ return (a.agentEmail || '').toLowerCase() === String(record.agentEmail || '').toLowerCase(); });
+                    }
+
+                    var evalDate = "";
+                    if (asg && asg.date) {
+                        evalDate = normalizeDateStr(asg.date);
+                    } else {
+                        evalDate = normalizeDateStr(record.dateOfEvaluation || record.evaluationDate || record.submittedAt || record.date || "");
+                    }
+
                     var qaName = record.qaName || record.qaEmail || "another QA";
                     var score = (record.score !== undefined && record.score !== null && record.score !== "") ? (" • Score: " + record.score + "%") : "";
 
@@ -1488,6 +1570,7 @@
                     // 1. Auto-populate Date of Evaluation to match completed entry
                     if (evalDate) {
                         inpDateEvaluation.value = evalDate;
+                        if (asg) selectedAssignmentId = asg.id;
                         updateAgentDropdown(); // update dropdown choices for that evaluation date
                     }
 
@@ -1499,7 +1582,7 @@
                         } catch(e) { snap = null; }
                     }
 
-                    var targetEmail = String(record.agentEmail || (snap && (snap.toasttabEmail || snap.internalIbexEmail)) || '').trim().toLowerCase();
+                    var targetEmail = String(record.agentEmail || (snap && (snap.toasttabEmail || snap.internalIbexEmail)) || (asg && asg.agentEmail) || '').trim().toLowerCase();
                     var targetName = formatToDisplayName((snap && (snap.displayName || snap.fullName)) || record.agentName || '').trim().toLowerCase();
                     var rawRecordName = String(record.agentName || '').trim().toLowerCase();
 
@@ -1948,7 +2031,7 @@
 
                 currentRubric = allRubrics[0] || DEFAULT_FALLBACK_RUBRIC;
                 renderRubric(currentRubric, globalFeedbackTags, globalFeedbackGeneral);
-                updateAgentDropdown();
+                autoSelectAssignmentAndDate();
                 updateLiveScore();
                 hideLoading();
             }
@@ -1957,7 +2040,7 @@
                 hideLoading();
                 if (!cached) {
                     renderRubric(DEFAULT_FALLBACK_RUBRIC, [], []);
-                    updateAgentDropdown();
+                    autoSelectAssignmentAndDate();
                 }
                 showToast("Please enter your Apps Script API URL in ⚙️ Settings", false);
                 return;
@@ -2013,7 +2096,7 @@
 
                             currentRubric = allRubrics[0] || DEFAULT_FALLBACK_RUBRIC;
                             renderRubric(currentRubric, globalFeedbackTags, globalFeedbackGeneral);
-                            updateAgentDropdown();
+                            autoSelectAssignmentAndDate();
                             updateLiveScore();
                             showToast("Bulk synced with latest Google Sheets data!", false);
                         })
@@ -2028,7 +2111,7 @@
                     hideLoading();
                     if (!cached) {
                         renderRubric(DEFAULT_FALLBACK_RUBRIC, [], []);
-                        updateAgentDropdown();
+                        autoSelectAssignmentAndDate();
                         showToast("Loaded Toast QA Rubric (offline mode)", false);
                     }
                 });
