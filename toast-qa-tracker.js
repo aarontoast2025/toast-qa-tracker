@@ -718,6 +718,98 @@
             if(state[key].refreshUI) state[key].refreshUI();
             if(state[key].domTextarea) state[key].domTextarea.value = state[key].text;
         });
+        updateLiveScore();
+    };
+
+    // --- Score Calculation (identical to EvaluationsFormJS.html & EvaluationsJS.html) ---
+    var computeRubricScore = function() {
+        var rawSections = [];
+        if (currentRubric) {
+            if (Array.isArray(currentRubric.sections)) {
+                rawSections = currentRubric.sections;
+            } else if (Array.isArray(currentRubric.structure)) {
+                rawSections = currentRubric.structure;
+            } else if (typeof currentRubric.structure === 'string') {
+                try { rawSections = JSON.parse(currentRubric.structure); } catch(e) {}
+            }
+        }
+        if (rawSections.length === 0 && DEFAULT_FALLBACK_RUBRIC) {
+            rawSections = typeof DEFAULT_FALLBACK_RUBRIC.structure === 'string' ? JSON.parse(DEFAULT_FALLBACK_RUBRIC.structure) : (DEFAULT_FALLBACK_RUBRIC.sections || []);
+        }
+
+        var cp = 0, mp = 0, totalItems = 0, correctCount = 0, incorrectCount = 0;
+
+        rawSections.forEach(function(s, si) {
+            (s.items || []).forEach(function(it, ii) {
+                totalItems++;
+                var im = 0, ib = 0, hd = false;
+                (it.options || []).forEach(function(o) {
+                    var pts = parseFloat(o.points) || 0;
+                    var isCorr = (o.isCorrect === true || o.isCorrect === 'true');
+                    if (isCorr) {
+                        if (pts > im) im = pts;
+                        if (o.isDefault === true || o.isDefault === 'true') {
+                            ib = pts;
+                            hd = true;
+                        }
+                    }
+                });
+                if (!hd) ib = im;
+                mp += im;
+
+                var keyColon = si + ":" + ii;
+                var keyUnderscore = si + "_" + ii;
+                var sState = state[keyColon] || state[keyUnderscore];
+
+                if (sState && sState.options) {
+                    var selOpt = sState.options[sState.selIndex] || sState.options.find(function(o){ return o.id === sState.sel || o.label === sState.sel; }) || sState.options[0];
+                    if (selOpt) {
+                        var pts = parseFloat(selOpt.points) || 0;
+                        var isCorr = (selOpt.isCorrect === true || selOpt.isCorrect === 'true');
+                        if (isCorr) {
+                            correctCount++;
+                            cp += pts;
+                        } else {
+                            incorrectCount++;
+                            cp += (ib - pts);
+                        }
+                    } else {
+                        cp += ib;
+                    }
+                } else {
+                    cp += ib;
+                }
+            });
+        });
+
+        var fp = Math.max(0, cp);
+        var pct = mp > 0 ? (fp / mp) * 100 : (fp > 0 ? 100 : 0);
+        return {
+            score: parseFloat(pct.toFixed(2)),
+            scoreStr: pct.toFixed(2),
+            earnedPoints: fp,
+            maxPoints: mp,
+            correctCount: correctCount,
+            incorrectCount: incorrectCount,
+            totalItems: totalItems
+        };
+    };
+
+    var scoreBadge = null;
+    var updateLiveScore = function() {
+        var res = computeRubricScore();
+        if (scoreBadge) {
+            var bg = '#dcfce7', txt = '#15803d', border = '#86efac';
+            if (res.score < 70) {
+                bg = '#fee2e2'; txt = '#991b1b'; border = '#fca5a5';
+            } else if (res.score < 85) {
+                bg = '#fef9c3'; txt = '#854d0e'; border = '#fde047';
+            }
+            scoreBadge.style.background = bg;
+            scoreBadge.style.color = txt;
+            scoreBadge.style.border = '1px solid ' + border;
+            scoreBadge.innerHTML = '<span>Score: <strong>' + res.scoreStr + '%</strong></span>';
+        }
     };
 
     // --- Form Rendering by Rubric Object ---
@@ -901,6 +993,7 @@
                         renderTags();
                         updateHeaderBg();
                         updateText(key);
+                        updateLiveScore();
                     });
 
                     updateSelectStyles();
@@ -920,6 +1013,7 @@
                             renderTags();
                             updateHeaderBg();
                             updateText(key);
+                            updateLiveScore();
                         });
 
                         btnGroup.appendChild(btn);
@@ -982,6 +1076,7 @@
             });
         });
 
+        updateLiveScore();
         if(inpInteractionId.value) checkExistingRecord();
     };
 
@@ -1223,13 +1318,8 @@
             });
         });
 
-        var totalPoints = 0;
-        var earnedPoints = 0;
-        Object.keys(state).forEach(function(key){
-            var s = state[key];
-            var opt = s.options.find(function(o){ return o.id === s.sel; });
-            if (opt) earnedPoints += Number(opt.points || 0);
-        });
+        var scoreResult = computeRubricScore();
+        var finalScorePercentage = scoreResult.score;
 
         // Resolve advocate name & snapshot
         var selectedOpt = selAgent.selectedOptions[0];
@@ -1257,7 +1347,7 @@
                 issueConcern: txtIssue.value.trim(),
                 rubricId: (currentRubric && currentRubric.id) || '',
                 assignmentId: selectedAssignmentId || '',
-                score: earnedPoints,
+                score: finalScorePercentage,
                 details: details,
                 pageUrl: window.location.href
             }
@@ -1481,6 +1571,12 @@
 
     // --- Footer Controls ---
     var footer = createElement("div", sFooter);
+
+    scoreBadge = createElement("div");
+    scoreBadge.style.cssText = "margin-right:auto;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:6px;transition:all 0.2s;background:#dcfce7;color:#15803d;border:1px solid #86efac";
+    scoreBadge.innerHTML = "<span>Score: <strong>100.00%</strong></span>";
+    footer.appendChild(scoreBadge);
+
     var btnCancel = createElement("button", sBtnCancel);
     btnCancel.textContent = "Cancel";
     addListener(btnCancel, "click", function(){ overlay.remove(); });
