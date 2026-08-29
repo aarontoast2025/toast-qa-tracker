@@ -417,7 +417,7 @@
     }
     inpDateEvaluation.value = getLocalDateString();
     dateRow.appendChild(createFieldWrapper("📅 Date of Interaction", inpDateInteraction));
-    dateRow.appendChild(createFieldWrapper("📅 Date of Evaluation (Assignment Date)", inpDateEvaluation));
+    dateRow.appendChild(createFieldWrapper("📅 Date of Evaluation", inpDateEvaluation));
     headerFieldsContainer.appendChild(dateRow);
 
     // Case Category
@@ -555,11 +555,23 @@
                     { id: 'no', label: 'No', points: 0, color: 'red', isDefault: false }
                 ];
                 var options = rawOptions.map(function(opt, idx){
+                    var optColor = 'gray';
+                    if (opt.isCorrect === true) {
+                        optColor = 'green';
+                    } else if (opt.isCorrect === false) {
+                        optColor = 'red';
+                    } else if (opt.color) {
+                        optColor = opt.color;
+                    } else {
+                        optColor = (idx === 0) ? 'green' : 'red';
+                    }
+
                     return {
                         id: opt.id || String(idx),
                         label: opt.label || opt.text || 'Option',
                         points: opt.points !== undefined ? opt.points : 0,
-                        color: opt.color || (idx === 0 ? 'green' : 'red'),
+                        color: optColor,
+                        isCorrect: opt.isCorrect,
                         isDefault: opt.isDefault === true
                     };
                 });
@@ -631,50 +643,97 @@
                     });
                 };
 
-                // Button options group
-                var btnGroup = createElement("div", sBtnGroup);
+                // Render based on uiType: 'dropdown' or 'buttons'
+                var isDropdown = (item.uiType === 'dropdown');
+                var optSelect = null;
+                var btnGroup = null;
                 var optionButtons = [];
 
-                options.forEach(function(opt, optIdx){
-                    var btn = createElement("button");
-                    btn.textContent = opt.label;
-                    btn.style.cssText = sBtnBase;
+                if (isDropdown) {
+                    optSelect = createElement("select", sSelect);
+                    options.forEach(function(opt, optIdx){
+                        var oEl = createElement("option");
+                        oEl.value = opt.id;
+                        var ptsLabel = (opt.points !== undefined && opt.points !== 0) ? (" (" + opt.points + " pts)") : "";
+                        oEl.textContent = opt.label + ptsLabel;
+                        if (optIdx === defaultIdx) oEl.selected = true;
+                        optSelect.appendChild(oEl);
+                    });
 
-                    addListener(btn, "click", function(){
-                        state[key].sel = opt.id;
-                        state[key].selIndex = optIdx;
+                    var updateSelectStyles = function() {
+                        var val = state[key].sel;
+                        var theme = getTheme({ options: options }, val);
+                        var cols = getColors(theme);
+                        optSelect.style.background = cols.bg;
+                        optSelect.style.color = cols.txt;
+                        optSelect.style.borderColor = cols.border;
+                        optSelect.style.fontWeight = "600";
+                    };
+
+                    addListener(optSelect, "change", function(e){
+                        var selectedVal = e.target.value;
+                        var foundIdx = options.findIndex(function(o){ return o.id === selectedVal; });
+                        if (foundIdx === -1) foundIdx = 0;
+                        state[key].sel = selectedVal;
+                        state[key].selIndex = foundIdx;
                         state[key].selectedTags = [];
-                        updateBtnStyles();
+                        updateSelectStyles();
                         renderTags();
                         updateHeaderBg();
                         updateText(key);
                     });
 
-                    btnGroup.appendChild(btn);
-                    optionButtons.push({ dom: btn, id: opt.id, idx: optIdx });
-                });
+                    updateSelectStyles();
+                    itemBody.appendChild(optSelect);
+                } else {
+                    btnGroup = createElement("div", sBtnGroup);
+                    options.forEach(function(opt, optIdx){
+                        var btn = createElement("button");
+                        btn.textContent = opt.label;
+                        btn.style.cssText = sBtnBase;
 
-                var updateBtnStyles = function() {
-                    var val = state[key].sel;
-                    var theme = getTheme({ options: options }, val);
-                    var cols = getColors(theme);
-                    var activeStyle = sBtnBase + ";background:" + cols.bg + ";color:" + cols.txt + ";border-color:" + cols.border;
-                    var inactiveStyle = sBtnBase + ";background:white;color:#475569;border-color:#cbd5e1";
+                        addListener(btn, "click", function(){
+                            state[key].sel = opt.id;
+                            state[key].selIndex = optIdx;
+                            state[key].selectedTags = [];
+                            updateBtnStyles();
+                            renderTags();
+                            updateHeaderBg();
+                            updateText(key);
+                        });
 
-                    optionButtons.forEach(function(b){
-                        b.dom.style.cssText = (b.id === val) ? activeStyle : inactiveStyle;
+                        btnGroup.appendChild(btn);
+                        optionButtons.push({ dom: btn, id: opt.id, idx: optIdx });
                     });
-                };
+
+                    var updateBtnStyles = function() {
+                        var val = state[key].sel;
+                        var theme = getTheme({ options: options }, val);
+                        var cols = getColors(theme);
+                        var activeStyle = sBtnBase + ";background:" + cols.bg + ";color:" + cols.txt + ";border-color:" + cols.border;
+                        var inactiveStyle = sBtnBase + ";background:white;color:#475569;border-color:#cbd5e1";
+
+                        optionButtons.forEach(function(b){
+                            b.dom.style.cssText = (b.id === val) ? activeStyle : inactiveStyle;
+                        });
+                    };
+
+                    updateBtnStyles();
+                    itemBody.appendChild(btnGroup);
+                }
 
                 state[key].refreshUI = function() {
-                    updateBtnStyles();
+                    if (isDropdown && optSelect) {
+                        optSelect.value = state[key].sel;
+                        updateSelectStyles();
+                    } else if (btnGroup) {
+                        updateBtnStyles();
+                    }
                     checkbox.checked = state[key].checked;
                     renderTags();
                     updateHeaderBg();
                 };
 
-                updateBtnStyles();
-                itemBody.appendChild(btnGroup);
                 itemBody.appendChild(tagContainer);
 
                 var textarea = createElement("textarea", sTextarea);
@@ -767,15 +826,13 @@
 
         var normSelectedDate = normalizeDateStr(selectedDate);
 
-        // Group 1: Assigned for selected date
+        // Filter assignments strictly matching the selected Date of Evaluation
         var dateAssignments = globalAssignments.filter(function(a){
             return normalizeDateStr(a.date) === normSelectedDate;
         });
 
         if (dateAssignments.length > 0) {
-            var grpDate = createElement("optgroup");
-            grpDate.label = "Assigned for Selected Date (" + selectedDate + ")";
-            dateAssignments.forEach(function(a, idx){
+            dateAssignments.forEach(function(a){
                 var opt = createElement("option");
                 opt.value = "asg:" + a.id;
                 var agentLabel = resolveName(a);
@@ -783,53 +840,25 @@
                 opt.dataset.rubricId = a.rubricId || "";
                 opt.dataset.agentName = agentLabel;
                 opt.dataset.asgId = a.id;
-                grpDate.appendChild(opt);
 
                 if (pageAdvocateName && agentLabel.toLowerCase().includes(pageAdvocateName)) {
                     opt.selected = true;
                     selectedAssignmentId = a.id;
                 }
+                selAgent.appendChild(opt);
             });
-            selAgent.appendChild(grpDate);
-        }
-
-        // Group 2: Assigned on other dates in window
-        var otherAssignments = globalAssignments.filter(function(a){
-            return normalizeDateStr(a.date) !== normSelectedDate;
-        });
-
-        if (otherAssignments.length > 0) {
-            var grpOtherDates = createElement("optgroup");
-            grpOtherDates.label = "Assignments from Other Dates";
-            otherAssignments.forEach(function(a){
-                var opt = createElement("option");
-                opt.value = "asg:" + a.id;
-                var agentLabel = resolveName(a);
-                var aDate = (a.date || "").split('T')[0];
-                opt.textContent = agentLabel + " (" + aDate + ")" + (a.status === 'Completed' ? ' [✓ Done]' : '');
-                opt.dataset.rubricId = a.rubricId || "";
-                opt.dataset.agentName = agentLabel;
-                opt.dataset.asgId = a.id;
-                grpOtherDates.appendChild(opt);
-            });
-            selAgent.appendChild(grpOtherDates);
-        }
-
-        if (globalAssignments.length === 0) {
+        } else {
             var optNone = createElement("option");
             optNone.disabled = true;
-            optNone.textContent = QA_EMAIL ? ("(No assignments found for " + QA_EMAIL + ")") : "(Set your QA email in ⚙️ Settings)";
+            optNone.textContent = "(No assignments for " + selectedDate + ")";
             selAgent.appendChild(optNone);
         }
 
-        // Group 3: Unassigned / Manual
-        var grpManual = createElement("optgroup");
-        grpManual.label = "Manual / Unassigned";
+        // Custom / Unassigned Advocate option directly at the bottom
         var optCustom = createElement("option");
         optCustom.value = "custom";
         optCustom.textContent = "✏️ Custom / Unassigned Advocate";
-        grpManual.appendChild(optCustom);
-        selAgent.appendChild(grpManual);
+        selAgent.appendChild(optCustom);
     };
 
     // When an agent is chosen from the dropdown:
