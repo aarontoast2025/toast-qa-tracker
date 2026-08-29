@@ -649,12 +649,12 @@
 
     // 1. Agent's Name Dropdown
     var selAgent = createElement("select", sSelect);
-    selAgent.innerHTML = "<option value=''>Select Assigned Agent...</option>";
+    selAgent.innerHTML = "<option value=''>Agent's Name</option>";
     var wrapAgent = createIconFieldWrapper("👤", selAgent);
 
     // 2. Interaction ID
     var inpInteractionId = createElement("input", sInput);
-    inpInteractionId.placeholder = "Interaction ID...";
+    inpInteractionId.placeholder = "Interaction ID";
     inpInteractionId.value = getInteractionId();
     var wrapInteractionId = createIconFieldWrapper("🆔", inpInteractionId);
 
@@ -676,7 +676,7 @@
         if (!globalEvalTypes || globalEvalTypes.length === 0) {
             var optPlaceholder = createElement("option");
             optPlaceholder.value = "";
-            optPlaceholder.textContent = "Evaluation Type (Loading...)";
+            optPlaceholder.textContent = "Evaluation Type";
             selEvalType.appendChild(optPlaceholder);
             return;
         }
@@ -708,7 +708,7 @@
         });
     } else {
         selAni = createElement("input", sInput);
-        selAni.placeholder = "Call ANI / DNIS...";
+        selAni.placeholder = "Call ANI / DNIS";
     }
     var wrapAni = createIconFieldWrapper("📞", selAni);
 
@@ -721,9 +721,9 @@
     // Row 3: Case # & Call Duration Row
     var caseDurationRow = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;width:100%;");
     var inpCaseNo = createElement("input", sInput);
-    inpCaseNo.placeholder = "Case #...";
+    inpCaseNo.placeholder = "Case #";
     var inpDuration = createElement("input", sInput);
-    inpDuration.placeholder = "Call Duration (sec)...";
+    inpDuration.placeholder = "Call Duration";
     inpDuration.value = getCallDuration();
     caseDurationRow.appendChild(createIconFieldWrapper("🔢", inpCaseNo));
     caseDurationRow.appendChild(createIconFieldWrapper("⏱️", inpDuration));
@@ -755,9 +755,9 @@
     // Row 5: Category & Sub-Category Row
     var categoryRow = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;width:100%;");
     var inpCategory = createElement("input", sInput);
-    inpCategory.placeholder = "Category (e.g. Payroll, POS)...";
+    inpCategory.placeholder = "Category";
     var inpSubCategory = createElement("input", sInput);
-    inpSubCategory.placeholder = "Sub-Category (e.g. Direct Deposit)...";
+    inpSubCategory.placeholder = "Sub-Category";
     categoryRow.appendChild(createIconFieldWrapper("🗂️", inpCategory));
     categoryRow.appendChild(createIconFieldWrapper("📂", inpSubCategory));
     headerFieldsContainer.appendChild(categoryRow);
@@ -769,7 +769,7 @@
     icoIssue.style.cssText = "position:absolute;left:11px;top:9px;pointer-events:none;font-size:13px;z-index:2;user-select:none;";
 
     var txtIssue = createElement("textarea", sTextarea);
-    txtIssue.placeholder = "Issue / Concern description...";
+    txtIssue.placeholder = "Issue / Concern";
     txtIssue.style.cssText = "width:100%;border:1px solid #cbd5e1;border-radius:5px;padding:8px 34px 8px 36px;font-family:inherit;resize:vertical;height:55px;font-size:13px;box-sizing:border-box;margin:0;";
 
     var btnSummary = createElement("span");
@@ -1014,6 +1014,9 @@
                     id: item.id || (secIdx + "_" + itemIdx),
                     secIdx: secIdx,
                     itemIdx: itemIdx,
+                    sectionName: (section.name || section.title || ("Section " + (secIdx + 1))).trim(),
+                    question: (item.question || item.title || item.shortName || cleanText || ("Item " + (itemIdx + 1))).trim(),
+                    cleanQuestion: cleanText.trim().toLowerCase(),
                     sel: options[defaultIdx].id,
                     selIndex: defaultIdx,
                     text: "",
@@ -1163,6 +1166,7 @@
                         updateBtnStyles();
                     }
                     checkbox.checked = state[key].checked;
+                    if (textarea) textarea.value = state[key].text || "";
                     renderTags();
                     updateHeaderBg();
                 };
@@ -1171,7 +1175,7 @@
 
                 var textarea = createElement("textarea", sTextarea);
                 state[key].domTextarea = textarea;
-                textarea.placeholder = "Comments...";
+                textarea.placeholder = "Comments";
                 addListener(textarea, "input", function(e){
                     state[key].text = e.target.value;
                     updateHeaderBg();
@@ -1308,6 +1312,11 @@
         var selectedDate = inpDateEvaluation.value; // YYYY-MM-DD
         selAgent.innerHTML = "";
 
+        var defaultOpt = createElement("option");
+        defaultOpt.value = "";
+        defaultOpt.textContent = "Agent's Name";
+        selAgent.appendChild(defaultOpt);
+
         var pageAdvocateName = getAdvocateNameFromPage().toLowerCase();
         var normSelectedDate = normalizeDateStr(selectedDate);
 
@@ -1316,13 +1325,6 @@
             return normalizeDateStr(a.date) === normSelectedDate;
         });
 
-        var defaultOpt = createElement("option");
-        defaultOpt.value = "";
-        defaultOpt.textContent = dateAssignments.length > 0
-            ? ("-- Select Assigned Agent (" + dateAssignments.length + " assigned) --")
-            : "-- Select Assigned Agent --";
-        selAgent.appendChild(defaultOpt);
-
         if (dateAssignments.length > 0) {
             var matchedOptFound = false;
             dateAssignments.forEach(function(a){
@@ -1330,7 +1332,7 @@
                 opt.value = "asg:" + a.id;
                 var agentLabel = resolveName(a);
                 var isDone = (a.status === 'Completed');
-                opt.textContent = agentLabel + (isDone ? ' [✓ Done]' : ' [Pending]');
+                opt.textContent = isDone ? ("✓ " + agentLabel) : agentLabel;
                 opt.dataset.rubricId = a.rubricId || "";
                 opt.dataset.agentName = agentLabel;
                 opt.dataset.agentEmail = a.agentEmail || "";
@@ -1348,18 +1350,7 @@
                 }
                 selAgent.appendChild(opt);
             });
-        } else {
-            var optNone = createElement("option");
-            optNone.disabled = true;
-            optNone.textContent = "(No assignments for " + (selectedDate || "selected date") + ")";
-            selAgent.appendChild(optNone);
         }
-
-        // Custom / Unassigned Advocate option directly at the bottom
-        var optCustom = createElement("option");
-        optCustom.value = "custom";
-        optCustom.textContent = "✏️ Custom / Unassigned Advocate";
-        selAgent.appendChild(optCustom);
     };
 
     // Unified Agent Selection Handler
@@ -1718,60 +1709,135 @@
         if (record.evaluationDetails) {
             try {
                 var details = typeof record.evaluationDetails === 'string' ? JSON.parse(record.evaluationDetails) : record.evaluationDetails;
-                if (typeof details === 'object' && details !== null && !Array.isArray(details)) {
-                    Object.keys(details).forEach(function(secName, secIdx){
-                        var sItems = details[secName];
-                        if (Array.isArray(sItems)) {
-                            sItems.forEach(function(it, itIdx){
-                                var key = secIdx + ":" + itIdx;
-                                if (!state[key]) key = secIdx + "_" + itIdx;
-                                if (!state[key]) {
-                                    key = Object.keys(state).find(function(k){
-                                        var sObj = state[k];
-                                        if (!sObj) return false;
-                                        var itQ = (it.question || '').trim().toLowerCase();
-                                        var curQ = (sObj.question || (sObj.domTextarea && sObj.domTextarea.closest('.rubric-section') && sObj.domTextarea.closest('.rubric-section').querySelector('span') && sObj.domTextarea.closest('.rubric-section').querySelector('span').textContent) || '').trim().toLowerCase();
-                                        return (curQ && curQ.includes(itQ)) || (sObj.groupName === secName && sObj.itemIdx === itIdx);
-                                    });
-                                }
-                                if (key && state[key]) {
-                                    var matchedOpt = state[key].options.find(function(o){
-                                        return o.label === it.selected || (it.selected && o.label.toLowerCase() === String(it.selected).toLowerCase());
-                                    });
-                                    if (matchedOpt) {
-                                        state[key].sel = matchedOpt.id;
-                                        state[key].selIndex = state[key].options.indexOf(matchedOpt);
-                                    }
-                                    if (it.checked !== undefined) {
-                                        state[key].checked = (it.checked === true || it.checked === 'true');
-                                    }
-                                    state[key].text = it.feedbackText || it.feedback || "";
+                var normalizeStr = function(str) {
+                    return String(str || '')
+                        .replace(/^\d+\.\s*/, '')
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]/g, '');
+                };
 
-                                    if (Array.isArray(it.feedbackChips) && it.feedbackChips.length > 0) {
-                                        state[key].selectedTags = it.feedbackChips.map(function(chipLabel){
-                                            var existing = globalFeedbackTags.find(function(gt){
-                                                return (gt.buttonLabel || gt.button_label || gt.tagLabel || gt.tag_label || '') === chipLabel;
-                                            });
-                                            return existing || { buttonLabel: chipLabel, text: chipLabel };
-                                        });
-                                    }
-                                }
+                if (typeof details === 'object' && details !== null && !Array.isArray(details)) {
+                    Object.keys(details).forEach(function(secName){
+                        var sItems = details[secName];
+                        if (!Array.isArray(sItems)) return;
+                        var secNorm = normalizeStr(secName);
+
+                        sItems.forEach(function(it, itIdx){
+                            var itQNorm = normalizeStr(it.question || it.title || it.shortName || '');
+                            if (!itQNorm) return;
+
+                            // Step 1: Find best matching item in state
+                            // Priority 1: Match BOTH Section Name AND Question Name
+                            var matchedKey = Object.keys(state).find(function(k){
+                                var sObj = state[k];
+                                if (!sObj) return false;
+                                var sSecNorm = normalizeStr(sObj.sectionName || sObj.groupName || '');
+                                var sQNorm = normalizeStr(sObj.question || sObj.cleanQuestion || '');
+                                return (sSecNorm === secNorm || sSecNorm.includes(secNorm) || secNorm.includes(sSecNorm)) &&
+                                       (sQNorm === itQNorm || sQNorm.includes(itQNorm) || itQNorm.includes(sQNorm));
                             });
-                        }
+
+                            // Priority 2: Match Question Name anywhere across state
+                            if (!matchedKey) {
+                                matchedKey = Object.keys(state).find(function(k){
+                                    var sObj = state[k];
+                                    if (!sObj) return false;
+                                    var sQNorm = normalizeStr(sObj.question || sObj.cleanQuestion || '');
+                                    return sQNorm === itQNorm || (itQNorm.length > 5 && (sQNorm.includes(itQNorm) || itQNorm.includes(sQNorm)));
+                                });
+                            }
+
+                            // Priority 3: Match by Section Name + Item Index
+                            if (!matchedKey) {
+                                matchedKey = Object.keys(state).find(function(k){
+                                    var sObj = state[k];
+                                    if (!sObj) return false;
+                                    var sSecNorm = normalizeStr(sObj.sectionName || sObj.groupName || '');
+                                    return (sSecNorm === secNorm || sSecNorm.includes(secNorm) || secNorm.includes(sSecNorm)) && sObj.itemIdx === itIdx;
+                                });
+                            }
+
+                            if (!matchedKey || !state[matchedKey]) return;
+                            var sItem = state[matchedKey];
+
+                            // Step 2: Match Option / Answer
+                            var itSelRaw = String(it.selected || it.answerId || '').trim();
+                            var itSelNorm = normalizeStr(itSelRaw);
+
+                            var matchedOpt = sItem.options.find(function(o){
+                                var oLabelNorm = normalizeStr(o.label || o.text || '');
+                                var oIdNorm = normalizeStr(o.id || '');
+                                return oLabelNorm === itSelNorm || oIdNorm === itSelNorm;
+                            });
+
+                            if (!matchedOpt) {
+                                matchedOpt = sItem.options.find(function(o){
+                                    var oLabelNorm = normalizeStr(o.label || o.text || '');
+                                    return (oLabelNorm && itSelNorm && (oLabelNorm.includes(itSelNorm) || itSelNorm.includes(oLabelNorm)));
+                                });
+                            }
+
+                            if (matchedOpt) {
+                                sItem.sel = matchedOpt.id;
+                                sItem.selIndex = sItem.options.indexOf(matchedOpt);
+                            }
+
+                            // Step 3: Restore Checkbox
+                            if (it.checked !== undefined) {
+                                sItem.checked = (it.checked === true || it.checked === 'true');
+                            }
+
+                            // Step 4: Restore Feedback Text
+                            sItem.text = it.feedbackText || it.feedback || "";
+
+                            // Step 5: Restore Feedback Chips
+                            if (Array.isArray(it.feedbackChips) && it.feedbackChips.length > 0) {
+                                sItem.selectedTags = it.feedbackChips.map(function(chipLabel){
+                                    var existing = globalFeedbackTags.find(function(gt){
+                                        var gtLabel = gt.buttonLabel || gt.button_label || gt.tagLabel || gt.tag_label || '';
+                                        return normalizeStr(gtLabel) === normalizeStr(chipLabel);
+                                    });
+                                    return existing || {
+                                        buttonLabel: chipLabel,
+                                        text: chipLabel,
+                                        id: 'chip_' + chipLabel,
+                                        sectionIndex: sItem.secIdx,
+                                        itemIndex: sItem.itemIdx,
+                                        optionIndex: sItem.selIndex
+                                    };
+                                });
+                            } else {
+                                sItem.selectedTags = [];
+                            }
+                        });
                     });
                     refreshAllUI();
                     updateLiveScore();
                 } else if (Array.isArray(details)) {
                     details.forEach(function(rItem){
-                        var key = Object.keys(state).find(function(k){ return state[k].id === rItem.itemId; });
-                        if(key && state[key]) {
-                            state[key].sel = rItem.answerId || rItem.selected;
-                            state[key].text = rItem.feedbackText || rItem.feedback || "";
+                        var itQNorm = normalizeStr(rItem.question || rItem.itemId || '');
+                        var matchedKey = Object.keys(state).find(function(k){
+                            var sObj = state[k];
+                            if (!sObj) return false;
+                            return sObj.id === rItem.itemId || normalizeStr(sObj.question) === itQNorm;
+                        });
+
+                        if(matchedKey && state[matchedKey]) {
+                            var sItem = state[matchedKey];
+                            var itSelNorm = normalizeStr(rItem.answerId || rItem.selected || '');
+                            var matchedOpt = sItem.options.find(function(o){
+                                return normalizeStr(o.label || o.id) === itSelNorm;
+                            });
+                            if (matchedOpt) {
+                                sItem.sel = matchedOpt.id;
+                                sItem.selIndex = sItem.options.indexOf(matchedOpt);
+                            }
+                            sItem.text = rItem.feedbackText || rItem.feedback || "";
                             if (rItem.checked !== undefined) {
-                                state[key].checked = (rItem.checked === true || rItem.checked === 'true');
+                                sItem.checked = (rItem.checked === true || rItem.checked === 'true');
                             }
                             if (Array.isArray(rItem.selectedTags)) {
-                                state[key].selectedTags = rItem.selectedTags;
+                                sItem.selectedTags = rItem.selectedTags;
                             }
                         }
                     });
