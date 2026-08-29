@@ -562,41 +562,58 @@
 
     var contentContainer = createElement("div", sContent);
 
-    // --- Header Fields ---
-    // User requested: "Before the Interaction ID, place the Agent's Name dropdown"
+    // --- Header Fields (Compact Layout: In-Field Icons & Ghosttext Placeholders, No Labels) ---
     var headerFieldsContainer = createElement("div");
-    headerFieldsContainer.style.cssText = "display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #e2e8f0";
+    headerFieldsContainer.style.cssText = "display:flex;flex-direction:column;gap:8px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #e2e8f0";
 
-    var createFieldWrapper = function(label, element, fullWidth) {
+    // Helper to wrap input/select/textarea with an in-field icon and generous breathing room (paddingLeft: 38px)
+    var createIconFieldWrapper = function(icon, element, fullWidth, isTextarea) {
         var wrap = createElement("div");
-        if (fullWidth) wrap.style.gridColumn = "1 / -1";
-        var lbl = createElement("label", sLabel);
-        lbl.textContent = label;
-        wrap.appendChild(lbl);
+        wrap.style.cssText = "position:relative;display:flex;align-items:center;width:100%;" + (fullWidth ? "grid-column:1 / -1;" : "");
+
+        var iconEl = createElement("span");
+        iconEl.textContent = icon;
+        iconEl.style.cssText = "position:absolute;left:11px;pointer-events:none;font-size:13px;z-index:2;user-select:none;display:inline-flex;align-items:center;justify-content:center;" +
+                              (isTextarea ? "top:9px;" : "");
+
+        // 38px left padding leaves one clean space between the icon and text
+        element.style.paddingLeft = "38px";
+        element.style.boxSizing = "border-box";
+        element.style.width = "100%";
+        if (!isTextarea) {
+            element.style.height = "34px";
+            element.style.paddingTop = "0";
+            element.style.paddingBottom = "0";
+        } else {
+            element.style.minHeight = "46px";
+            element.style.paddingTop = "8px";
+        }
+
+        wrap.appendChild(iconEl);
         wrap.appendChild(element);
         return wrap;
     };
 
     // 1. Agent's Name Dropdown
     var selAgent = createElement("select", sSelect);
-    selAgent.innerHTML = "<option value=''>-- Select Assigned Agent --</option>";
-    var wrapAgent = createFieldWrapper("👤 Agent's Name", selAgent);
+    selAgent.innerHTML = "<option value=''>Select Assigned Agent...</option>";
+    var wrapAgent = createIconFieldWrapper("👤", selAgent);
 
     // 2. Interaction ID
     var inpInteractionId = createElement("input", sInput);
     inpInteractionId.placeholder = "Interaction ID...";
     inpInteractionId.value = getInteractionId();
-    var wrapInteractionId = createFieldWrapper("🆔 Interaction ID", inpInteractionId);
-
-    var duplicateWarningBox = createElement("div");
-    duplicateWarningBox.style.cssText = "display:none;background:#fef2f2;border:1px solid #ef4444;border-radius:5px;padding:6px 10px;margin-top:6px;color:#991b1b;font-size:11px;font-weight:600;line-height:1.4";
-    wrapInteractionId.appendChild(duplicateWarningBox);
+    var wrapInteractionId = createIconFieldWrapper("🆔", inpInteractionId);
 
     // Row 1: Agent's Name and Interaction ID
-    var rowAgentInteraction = createElement("div", "grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;");
+    var rowAgentInteraction = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;");
     rowAgentInteraction.appendChild(wrapAgent);
     rowAgentInteraction.appendChild(wrapInteractionId);
     headerFieldsContainer.appendChild(rowAgentInteraction);
+
+    var duplicateWarningBox = createElement("div");
+    duplicateWarningBox.style.cssText = "display:none;background:#fef2f2;border:1px solid #ef4444;border-radius:5px;padding:6px 10px;margin-top:-2px;margin-bottom:2px;color:#991b1b;font-size:11px;font-weight:600;line-height:1.4";
+    headerFieldsContainer.appendChild(duplicateWarningBox);
 
     // 3. Evaluation Type Dropdown
     var selEvalType = createElement("select", sSelect);
@@ -606,7 +623,7 @@
         if (!globalEvalTypes || globalEvalTypes.length === 0) {
             var optPlaceholder = createElement("option");
             optPlaceholder.value = "";
-            optPlaceholder.textContent = "-- Loading Types from Settings --";
+            optPlaceholder.textContent = "Evaluation Type (Loading...)";
             selEvalType.appendChild(optPlaceholder);
             return;
         }
@@ -622,7 +639,7 @@
         }
     };
     updateEvalTypesDropdown();
-    var wrapEvalType = createFieldWrapper("📋 Evaluation Type", selEvalType);
+    var wrapEvalType = createIconFieldWrapper("📋", selEvalType);
 
     // 4. Call ANI / DNIS
     var aniOpts = getAniDnisOptions();
@@ -638,33 +655,35 @@
         });
     } else {
         selAni = createElement("input", sInput);
-        selAni.placeholder = "ANI / DNIS...";
+        selAni.placeholder = "Call ANI / DNIS...";
     }
-    var wrapAni = createFieldWrapper("📞 Call ANI/DNIS", selAni);
+    var wrapAni = createIconFieldWrapper("📞", selAni);
 
     // Row 2: Evaluation Type and Call ANI/DNIS
-    var rowEvalTypeAni = createElement("div", "grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;");
+    var rowEvalTypeAni = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;");
     rowEvalTypeAni.appendChild(wrapEvalType);
     rowEvalTypeAni.appendChild(wrapAni);
     headerFieldsContainer.appendChild(rowEvalTypeAni);
 
-    // Case # & Call Duration Row
-    var caseDurationRow = createElement("div", "grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;");
+    // Row 3: Case # & Call Duration Row
+    var caseDurationRow = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;");
     var inpCaseNo = createElement("input", sInput);
     inpCaseNo.placeholder = "Case #...";
     var inpDuration = createElement("input", sInput);
     inpDuration.placeholder = "Call Duration (sec)...";
     inpDuration.value = getCallDuration();
-    caseDurationRow.appendChild(createFieldWrapper("🔢 Case #", inpCaseNo));
-    caseDurationRow.appendChild(createFieldWrapper("⏱️ Call Duration", inpDuration));
+    caseDurationRow.appendChild(createIconFieldWrapper("🔢", inpCaseNo));
+    caseDurationRow.appendChild(createIconFieldWrapper("⏱️", inpDuration));
     headerFieldsContainer.appendChild(caseDurationRow);
 
-    // Date Row: Date of Interaction & Date of Evaluation (Equivalent to Assignments Date)
-    var dateRow = createElement("div", "grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;");
+    // Row 4: Date of Interaction & Date of Evaluation
+    var dateRow = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;");
     var inpDateInteraction = createElement("input", sInput);
     inpDateInteraction.type = "date";
+    inpDateInteraction.title = "Date of Interaction";
     var inpDateEvaluation = createElement("input", sInput);
     inpDateEvaluation.type = "date";
+    inpDateEvaluation.title = "Date of Evaluation";
     function getLocalDateString(d) {
         d = d || new Date();
         var y = d.getFullYear();
@@ -673,31 +692,31 @@
         return y + '-' + m + '-' + day;
     }
     inpDateEvaluation.value = getLocalDateString();
-    dateRow.appendChild(createFieldWrapper("📅 Date of Interaction", inpDateInteraction));
-    dateRow.appendChild(createFieldWrapper("📅 Date of Evaluation", inpDateEvaluation));
+    dateRow.appendChild(createIconFieldWrapper("📅", inpDateInteraction));
+    dateRow.appendChild(createIconFieldWrapper("📅", inpDateEvaluation));
     headerFieldsContainer.appendChild(dateRow);
 
-    // Category & Sub-Category Row
-    var categoryRow = createElement("div", "grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;");
+    // Row 5: Category & Sub-Category Row
+    var categoryRow = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;");
     var inpCategory = createElement("input", sInput);
     inpCategory.placeholder = "Category (e.g. Payroll, POS)...";
     var inpSubCategory = createElement("input", sInput);
     inpSubCategory.placeholder = "Sub-Category (e.g. Direct Deposit)...";
-    categoryRow.appendChild(createFieldWrapper("🗂️ Category", inpCategory));
-    categoryRow.appendChild(createFieldWrapper("📂 Sub-Category", inpSubCategory));
+    categoryRow.appendChild(createIconFieldWrapper("🗂️", inpCategory));
+    categoryRow.appendChild(createIconFieldWrapper("📂", inpSubCategory));
     headerFieldsContainer.appendChild(categoryRow);
 
-    // Issue / Concern with ✨ Gemini Summary button
+    // Row 6: Issue / Concern with ✨ Gemini Summary button
     var txtIssue = createElement("textarea", sTextarea);
     txtIssue.placeholder = "Issue / Concern description...";
-    var issueBox = createElement("div", "position:relative");
+    var issueBox = createElement("div", "position:relative;width:100%");
     var btnSummary = createElement("span");
     btnSummary.textContent = "✨";
     btnSummary.title = "Generate Summary from Transcript using Gemini AI";
     btnSummary.style.cssText = "position:absolute;right:8px;top:8px;cursor:pointer;font-size:16px;opacity:0.7;user-select:none;z-index:5";
     issueBox.appendChild(txtIssue);
     issueBox.appendChild(btnSummary);
-    headerFieldsContainer.appendChild(createFieldWrapper("✍️ Issue/Concern", issueBox, true));
+    headerFieldsContainer.appendChild(createIconFieldWrapper("📝", issueBox, true, true));
 
     addListener(btnSummary, "mouseenter", function(){ btnSummary.style.opacity = "1"; });
     addListener(btnSummary, "mouseleave", function(){ btnSummary.style.opacity = "0.7"; });
@@ -1418,7 +1437,7 @@
         });
     };
 
-    // Check for previous evaluation by Interaction ID & Duplicate Search
+    // Check for previous evaluation by Interaction ID & Auto-populate completed entry
     var checkExistingRecord = function() {
         var iId = inpInteractionId.value.trim();
         if(!iId || !API_BASE_URL) {
@@ -1437,51 +1456,96 @@
                     var record = result.data;
                     existingRecordId = record.id;
 
-                    var evalDate = record.evaluationDate || record.submittedAt || record.date || "previous date";
+                    var evalDate = record.dateOfEvaluation || record.evaluationDate || record.submittedAt || record.date || "previous date";
                     if (evalDate.includes('T')) evalDate = evalDate.split('T')[0];
                     var qaName = record.qaName || record.qaEmail || "another QA";
-                    var score = (record.score !== undefined && record.score !== null) ? (" • Score: " + record.score) : "";
+                    var score = (record.score !== undefined && record.score !== null) ? (" • Score: " + record.score + "%") : "";
 
-                    // Display Duplicate Warning Box
+                    // Display Duplicate Warning Banner
                     duplicateWarningBox.style.display = "block";
-                    duplicateWarningBox.innerHTML = "⚠️ <strong>Duplicate Interaction ID</strong><br>Already evaluated on " + evalDate + " by " + qaName + score + ".";
-                    showToast("⚠️ Warning: Duplicate Interaction ID found in Sheets!", true);
+                    duplicateWarningBox.innerHTML = "⚠️ <strong>Existing Completed Evaluation</strong><br>Evaluated on " + evalDate + " by " + qaName + score + ". All details loaded below.";
+                    showToast("ℹ️ Loaded existing evaluation data from database", false);
 
-                    if(record.caseNo && !inpCaseNo.value) inpCaseNo.value = record.caseNo;
-                    if(record.callDuration && !inpDuration.value) inpDuration.value = record.callDuration;
-                    if(record.dateOfInteraction && !inpDateInteraction.value) inpDateInteraction.value = record.dateOfInteraction.split('T')[0];
-                    if(record.caseCategory && !inpCategory.value) inpCategory.value = record.caseCategory;
-                    if(record.caseSubCategory && !inpSubCategory.value) inpSubCategory.value = record.caseSubCategory;
-                    if(record.issueConcern && !txtIssue.value) txtIssue.value = record.issueConcern;
+                    // 1. Auto-populate Date of Evaluation to match completed entry
+                    if (evalDate && evalDate !== "previous date") {
+                        inpDateEvaluation.value = evalDate;
+                        updateAgentDropdown(); // update dropdown choices for that evaluation date
+                    }
+
+                    // 2. Automatically select the Agent's Name in dropdown
+                    var targetEmail = String(record.agentEmail || '').trim().toLowerCase();
+                    var targetName = formatToDisplayName(record.agentName || '').trim().toLowerCase();
+                    var foundAgentIdx = -1;
+
+                    for (var oi = 0; oi < selAgent.options.length; oi++) {
+                        var opt = selAgent.options[oi];
+                        var optEmail = String(opt.dataset.agentEmail || '').trim().toLowerCase();
+                        var optName = String(opt.dataset.agentName || opt.textContent || '').trim().toLowerCase();
+                        if ((targetEmail && optEmail === targetEmail) || (targetName && optName === targetName)) {
+                            foundAgentIdx = oi;
+                            break;
+                        }
+                    }
+
+                    if (foundAgentIdx !== -1) {
+                        selAgent.selectedIndex = foundAgentIdx;
+                        selectedAssignmentId = selAgent.options[foundAgentIdx].dataset.asgId || "";
+                    } else {
+                        // Dynamically append the evaluated agent if not in current assignment roster
+                        var dispName = formatToDisplayName(record.agentName) || record.agentEmail || "Assigned Agent";
+                        var newOpt = createElement("option");
+                        newOpt.value = "db:" + (record.agentEmail || record.agentName);
+                        newOpt.textContent = dispName;
+                        newOpt.dataset.agentName = dispName;
+                        newOpt.dataset.agentEmail = record.agentEmail || "";
+                        newOpt.dataset.rubricId = record.rubricId || "";
+                        newOpt.dataset.evalType = record.evaluationType || "Standard";
+                        newOpt.selected = true;
+                        selAgent.appendChild(newOpt);
+                    }
+
+                    // 3. Auto-populate all header fields
+                    if(record.caseNo) inpCaseNo.value = record.caseNo;
+                    if(record.callDuration) inpDuration.value = record.callDuration;
+                    if(record.callAniDnis && selAni) selAni.value = record.callAniDnis;
+                    if(record.dateOfInteraction) {
+                        var dInt = String(record.dateOfInteraction).trim();
+                        if (dInt.includes('T')) dInt = dInt.split('T')[0];
+                        inpDateInteraction.value = dInt;
+                    }
+                    if(record.caseCategory) inpCategory.value = record.caseCategory;
+                    if(record.caseSubCategory) inpSubCategory.value = record.caseSubCategory;
+                    if(record.issueConcern) txtIssue.value = record.issueConcern;
                     if(record.evaluationType && selEvalType) selEvalType.value = record.evaluationType;
 
-                    if (record.rubricId) switchRubricById(record.rubricId);
+                    // 4. Switch Rubric if needed
+                    if (record.rubricId && currentRubric && currentRubric.id !== record.rubricId) {
+                        switchRubricById(record.rubricId);
+                    }
 
+                    // 5. Restore Rubric answers, selected feedback chips, and feedback text
                     if (record.evaluationDetails) {
                         try {
                             var details = typeof record.evaluationDetails === 'string' ? JSON.parse(record.evaluationDetails) : record.evaluationDetails;
-                            if (Array.isArray(details)) {
-                                details.forEach(function(rItem){
-                                    var key = Object.keys(state).find(function(k){ return state[k].id === rItem.itemId; });
-                                    if(key && state[key]) {
-                                        state[key].sel = rItem.answerId;
-                                        state[key].text = rItem.feedbackText || "";
-                                    }
-                                });
-                                refreshAllUI();
-                            } else if (typeof details === 'object' && details !== null) {
+                            if (typeof details === 'object' && details !== null && !Array.isArray(details)) {
+                                // Section-based dictionary: { "Section Name": [ { question, selected, feedback, feedbackText, feedbackChips } ] }
                                 Object.keys(details).forEach(function(secName, secIdx){
                                     var sItems = details[secName];
                                     if (Array.isArray(sItems)) {
                                         sItems.forEach(function(it, itIdx){
-                                            var key = secIdx + "_" + itIdx;
-                                            if (!state[key] && currentRubric && currentRubric.sections) {
+                                            var key = secIdx + ":" + itIdx;
+                                            if (!state[key]) key = secIdx + "_" + itIdx;
+                                            if (!state[key]) {
                                                 key = Object.keys(state).find(function(k){
-                                                    var curItem = currentRubric.sections[state[k].secIdx] && currentRubric.sections[state[k].secIdx].items[state[k].itemIdx];
-                                                    return curItem && (curItem.question || '').toLowerCase() === (it.question || '').toLowerCase();
+                                                    var sObj = state[k];
+                                                    if (!sObj) return false;
+                                                    var itQ = (it.question || '').trim().toLowerCase();
+                                                    var curQ = (sObj.question || (sObj.domTextarea && sObj.domTextarea.closest('.rubric-section') && sObj.domTextarea.closest('.rubric-section').querySelector('span') && sObj.domTextarea.closest('.rubric-section').querySelector('span').textContent) || '').trim().toLowerCase();
+                                                    return (curQ && curQ.includes(itQ)) || (sObj.groupName === secName && sObj.itemIdx === itIdx);
                                                 });
                                             }
                                             if (key && state[key]) {
+                                                // Answer selection
                                                 var matchedOpt = state[key].options.find(function(o){
                                                     return o.label === it.selected || (it.selected && o.label.toLowerCase() === it.selected.toLowerCase());
                                                 });
@@ -1489,21 +1553,50 @@
                                                     state[key].sel = matchedOpt.id;
                                                     state[key].selIndex = state[key].options.indexOf(matchedOpt);
                                                 }
+                                                // Feedback comments text
                                                 state[key].text = it.feedbackText || it.feedback || "";
+
+                                                // Feedback chips
+                                                if (Array.isArray(it.feedbackChips) && it.feedbackChips.length > 0) {
+                                                    state[key].selectedTags = it.feedbackChips.map(function(chipLabel){
+                                                        var existing = globalFeedbackTags.find(function(gt){
+                                                            return (gt.buttonLabel || gt.button_label || gt.tagLabel || gt.tag_label || '') === chipLabel;
+                                                        });
+                                                        return existing || { buttonLabel: chipLabel, text: chipLabel };
+                                                    });
+                                                }
                                             }
                                         });
                                     }
                                 });
                                 refreshAllUI();
+                                updateLiveScore();
+                            } else if (Array.isArray(details)) {
+                                details.forEach(function(rItem){
+                                    var key = Object.keys(state).find(function(k){ return state[k].id === rItem.itemId; });
+                                    if(key && state[key]) {
+                                        state[key].sel = rItem.answerId;
+                                        state[key].text = rItem.feedbackText || "";
+                                        if (Array.isArray(rItem.selectedTags)) {
+                                            state[key].selectedTags = rItem.selectedTags;
+                                        }
+                                    }
+                                });
+                                refreshAllUI();
+                                updateLiveScore();
                             }
-                        } catch(e) {}
+                        } catch(e) {
+                            console.error("Error restoring evaluation details:", e);
+                        }
                     }
                 } else {
                     duplicateWarningBox.style.display = "none";
                     duplicateWarningBox.innerHTML = "";
                 }
             })
-            .catch(function(){});
+            .catch(function(err){
+                console.warn("checkExistingRecord error:", err);
+            });
     };
 
     addListener(inpInteractionId, 'blur', checkExistingRecord);
