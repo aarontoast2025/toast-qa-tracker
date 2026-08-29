@@ -408,7 +408,14 @@
     inpDateInteraction.type = "date";
     var inpDateEvaluation = createElement("input", sInput);
     inpDateEvaluation.type = "date";
-    inpDateEvaluation.valueAsDate = new Date();
+    function getLocalDateString(d) {
+        d = d || new Date();
+        var y = d.getFullYear();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + day;
+    }
+    inpDateEvaluation.value = getLocalDateString();
     dateRow.appendChild(createFieldWrapper("📅 Date of Interaction", inpDateInteraction));
     dateRow.appendChild(createFieldWrapper("📅 Date of Evaluation (Assignment Date)", inpDateEvaluation));
     headerFieldsContainer.appendChild(dateRow);
@@ -711,6 +718,14 @@
     };
 
     // --- Populate Agent Dropdown based on Date of Evaluation ---
+    var formatEmailToName = function(email) {
+        if (!email) return "";
+        var namePart = email.split('@')[0];
+        return namePart.split('.').map(function(part){
+            return part.charAt(0).toUpperCase() + part.slice(1);
+        }).join(' ');
+    };
+
     var updateAgentDropdown = function() {
         var selectedDate = inpDateEvaluation.value; // YYYY-MM-DD
         selAgent.innerHTML = "";
@@ -721,7 +736,15 @@
         selAgent.appendChild(defaultOpt);
 
         var pageAdvocateName = getAdvocateNameFromPage().toLowerCase();
-        var matchedIndex = -1;
+
+        var resolveName = function(a) {
+            if (a.agentName && a.agentName !== a.agentEmail) return a.agentName;
+            var matchedUser = globalUsers.find(function(u){
+                return (u.email || '').toLowerCase() === (a.agentEmail || '').toLowerCase();
+            });
+            if (matchedUser && matchedUser.name) return matchedUser.name;
+            return formatEmailToName(a.agentEmail) || a.agentEmail || "Agent";
+        };
 
         // Group 1: Assigned for selected date
         var dateAssignments = globalAssignments.filter(function(a){
@@ -735,10 +758,10 @@
             dateAssignments.forEach(function(a, idx){
                 var opt = createElement("option");
                 opt.value = "asg:" + a.id;
-                var agentLabel = a.agentName || a.agentEmail || ("Agent #" + (idx + 1));
+                var agentLabel = resolveName(a);
                 opt.textContent = agentLabel + (a.status === 'Completed' ? ' [✓ Done]' : '');
                 opt.dataset.rubricId = a.rubricId || "";
-                opt.dataset.agentName = a.agentName || a.agentEmail || "";
+                opt.dataset.agentName = agentLabel;
                 opt.dataset.asgId = a.id;
                 grpDate.appendChild(opt);
 
@@ -750,37 +773,44 @@
             selAgent.appendChild(grpDate);
         }
 
-        // Group 2: Assigned in previous days (2-month window)
-        var prevAssignments = globalAssignments.filter(function(a){
+        // Group 2: Assigned on other dates in window
+        var otherAssignments = globalAssignments.filter(function(a){
             var aDate = (a.date || "").split('T')[0];
-            return aDate !== selectedDate && a.status !== 'Completed';
+            return aDate !== selectedDate;
         });
 
-        if (prevAssignments.length > 0) {
-            var grpPrev = createElement("optgroup");
-            grpPrev.label = "Pending Assignments (Other Days)";
-            prevAssignments.forEach(function(a){
+        if (otherAssignments.length > 0) {
+            var grpOtherDates = createElement("optgroup");
+            grpOtherDates.label = "Assignments from Other Dates";
+            otherAssignments.forEach(function(a){
                 var opt = createElement("option");
                 opt.value = "asg:" + a.id;
-                var agentLabel = a.agentName || a.agentEmail || "Agent";
+                var agentLabel = resolveName(a);
                 var aDate = (a.date || "").split('T')[0];
-                opt.textContent = agentLabel + " (" + aDate + ")";
+                opt.textContent = agentLabel + " (" + aDate + ")" + (a.status === 'Completed' ? ' [✓ Done]' : '');
                 opt.dataset.rubricId = a.rubricId || "";
-                opt.dataset.agentName = a.agentName || a.agentEmail || "";
+                opt.dataset.agentName = agentLabel;
                 opt.dataset.asgId = a.id;
-                grpPrev.appendChild(opt);
+                grpOtherDates.appendChild(opt);
             });
-            selAgent.appendChild(grpPrev);
+            selAgent.appendChild(grpOtherDates);
+        }
+
+        if (globalAssignments.length === 0) {
+            var optNone = createElement("option");
+            optNone.disabled = true;
+            optNone.textContent = QA_EMAIL ? ("(No assignments found for " + QA_EMAIL + ")") : "(Set your QA email in ⚙️ Settings)";
+            selAgent.appendChild(optNone);
         }
 
         // Group 3: Unassigned / Manual
-        var grpOther = createElement("optgroup");
-        grpOther.label = "Manual / Unassigned";
+        var grpManual = createElement("optgroup");
+        grpManual.label = "Manual / Unassigned";
         var optCustom = createElement("option");
         optCustom.value = "custom";
         optCustom.textContent = "✏️ Custom / Unassigned Advocate";
-        grpOther.appendChild(optCustom);
-        selAgent.appendChild(grpOther);
+        grpManual.appendChild(optCustom);
+        selAgent.appendChild(grpManual);
     };
 
     // When an agent is chosen from the dropdown:
@@ -1194,7 +1224,8 @@
             storage.set('gemini_key', GEMINI_API_KEY);
             storage.set('gemini_model', GEMINI_MODEL);
 
-            showToast("Settings saved!", false);
+            storage.set('last_sync_ts', '');
+            showToast("Settings saved! Syncing...", false);
             pOverlay.remove();
             if (API_BASE_URL) checkAndSyncData(true);
         });
@@ -1208,7 +1239,10 @@
     };
 
     toolsMenu.appendChild(createMenuItem("⚙️ Configure API & Gemini Key", showSettingsModal, toolsMenu));
-    toolsMenu.appendChild(createMenuItem("🔄 Force Refresh Database", function(){ checkAndSyncData(true); }, toolsMenu));
+    toolsMenu.appendChild(createMenuItem("🔄 Force Refresh Database", function(){
+        storage.set('last_sync_ts', '');
+        checkAndSyncData(true);
+    }, toolsMenu));
 
     // --- Sync & Initialization Logic (Two-Month Window + Timestamp Check) ---
     var checkAndSyncData = function(forceRefresh) {
