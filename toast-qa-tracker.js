@@ -13,7 +13,6 @@
         structure: "[{\"name\":\"Knowledgeable & effective problem-solving\",\"items\":[{\"question\":\"Investigation ownership & Resource optimization\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard excelled\",\"points\":12,\"isCorrect\":true,\"isDefault\":false},{\"label\":\"Quality standard met\",\"points\":8,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":25,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Customer training opportunity taken\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard met\",\"points\":4,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":4,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Confirmed resolution & next steps\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard met\",\"points\":8,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":10,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Escalation/transfer due diligence\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard excelled\",\"points\":12,\"isCorrect\":true,\"isDefault\":false},{\"label\":\"Quality standard met\",\"points\":8,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":25,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Internal case notes\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard met\",\"points\":5,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":5,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Major Process Failure: Interaction documentation\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"N/A\",\"points\":0,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":25,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Case data management\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard met\",\"points\":3,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":3,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Major Process Failure: Survey avoidance/ manipulation\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"N/A\",\"points\":0,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":25,\"isCorrect\":false,\"isDefault\":false}]}]},{\"name\":\"Empathy & rapport\",\"items\":[{\"question\":\"Major Process: De-escalation\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"N/A\",\"points\":0,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":25,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Customer Sentiment Acknowledgement\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard met\",\"points\":8,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":8,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Effective listening & information acknowledgement\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard met\",\"points\":7,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":7,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Internal collaboration\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard excelled\",\"points\":4,\"isCorrect\":true,\"isDefault\":false},{\"label\":\"Quality standard met\",\"points\":3,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":3,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Tone of response\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard excelled\",\"points\":7,\"isCorrect\":true,\"isDefault\":false},{\"label\":\"Quality standard met\",\"points\":6,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":6,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Intentional Customer Mistreat\",\"uiType\":\"dropdown\",\"options\":[{\"label\":\"Rude or unprofessional behavior\",\"points\":100,\"isCorrect\":false,\"isDefault\":false},{\"label\":\"Hanging up on a customer or manually closing a chat\",\"points\":100,\"isCorrect\":false,\"isDefault\":false},{\"label\":\"Repeated toggling of ready state to place self in the back of the call queue\",\"points\":100,\"isCorrect\":false,\"isDefault\":false},{\"label\":\"Excessive long silence or hold times without acknowledging the customer that result in the customer disconnecting the interaction\",\"points\":100,\"isCorrect\":false,\"isDefault\":false},{\"label\":\"Conducting personal business while on a call with a customer (i.e. having personal conversations)\",\"points\":100,\"isCorrect\":false,\"isDefault\":false},{\"label\":\"Denied tranfers\",\"points\":100,\"isCorrect\":false,\"isDefault\":false},{\"label\":\"N/A\",\"points\":0,\"isCorrect\":true,\"isDefault\":true}]}]},{\"name\":\"Responsive & consistent interactions\",\"items\":[{\"question\":\"Interaction customer communication\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard met\",\"points\":7,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":7,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Major Process Failure: Excessive response time (over 8 minutes)\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"N/A\",\"points\":0,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":25,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Case customer communication\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard met\",\"points\":7,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":7,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Major Process Failure: Waiting on agent action\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"N/A\",\"points\":0,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":25,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Negligent Customer Mistreat\",\"uiType\":\"dropdown\",\"options\":[{\"label\":\"Poor case management/hygiene\",\"points\":100,\"isCorrect\":false,\"isDefault\":false},{\"label\":\"Case closed before resolution reached\",\"points\":100,\"isCorrect\":false,\"isDefault\":false},{\"label\":\"Call drops and agent does not call the customer back\",\"points\":100,\"isCorrect\":false,\"isDefault\":false},{\"label\":\"Failure to appropriately document customer interaction\",\"points\":100,\"isCorrect\":false,\"isDefault\":false},{\"label\":\"Failing to probe the customer's need and unnecessary transferring of the call\",\"points\":100,\"isCorrect\":false,\"isDefault\":false},{\"label\":\"Not adhering to required customer authentication procedures or other essential security processes\",\"points\":100,\"isCorrect\":false,\"isDefault\":false},{\"label\":\"N/A\",\"points\":0,\"isCorrect\":true,\"isDefault\":true}]}]},{\"name\":\"Personalization\",\"items\":[{\"question\":\"Customer background information\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard met\",\"points\":4,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":4,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Contact preferences\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard met\",\"points\":5,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":5,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Account & previous case review\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard met\",\"points\":5,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":5,\"isCorrect\":false,\"isDefault\":false}]},{\"question\":\"Toast greeting & closing\",\"uiType\":\"buttons\",\"options\":[{\"label\":\"Quality standard met\",\"points\":2,\"isCorrect\":true,\"isDefault\":true},{\"label\":\"Quality standard missed\",\"points\":2,\"isCorrect\":false,\"isDefault\":false}]}]}]"
     };
 
-
     // LocalStorage helper
     var storage = {
         get: function(k, def) {
@@ -33,15 +32,18 @@
     var QA_EMAIL = storage.get('qa_email', '');
 
     var state = {};
-    var globalStructure = [];
+    var allRubrics = [DEFAULT_FALLBACK_RUBRIC];
+    var currentRubric = DEFAULT_FALLBACK_RUBRIC;
     var globalFeedbackGeneral = [];
     var globalFeedbackTags = [];
     var globalUsers = [];
+    var globalAssignments = [];
+    var selectedAssignmentId = "";
     var existingRecordId = null;
 
     // --- Styles ---
     var sOverlay = "position:fixed;top:0;left:0;right:0;bottom:0;background:transparent;display:flex;align-items:flex-start;justify-content:center;z-index:99999;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding-top:20px;overflow-y:auto;pointer-events:none";
-    var sModal = "background:white;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.25);width:90%;max-width:560px;height:82vh;max-height:820px;overflow:hidden;display:flex;flex-direction:column;cursor:grab;user-select:none;margin-bottom:20px;pointer-events:auto;position:relative";
+    var sModal = "background:white;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.25);width:90%;max-width:580px;height:82vh;max-height:820px;overflow:hidden;display:flex;flex-direction:column;cursor:grab;user-select:none;margin-bottom:20px;pointer-events:auto;position:relative";
     var sHeader = "padding:14px 20px;border-bottom:1px solid #e2e8f0;background:#ffffff;font-size:17px;font-weight:600;color:#1e293b;cursor:grab;display:flex;justify-content:space-between;align-items:center";
     var sContent = "padding:18px 20px;flex:1;color:#475569;font-size:13px;line-height:1.5;overflow-y:auto";
     var sGroupHeader = "margin:18px 0 10px;font-size:15px;font-weight:700;color:#2563eb;border-bottom:2px solid #2563eb;padding-bottom:4px";
@@ -50,7 +52,7 @@
     var sItemBody = "display:none;padding:12px 14px;border-top:1px solid #e2e8f0;background:#ffffff";
     var sBtnGroup = "margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap";
     var sBtnBase = "flex:1;min-width:60px;padding:7px 10px;border:1px solid;border-radius:5px;cursor:pointer;font-weight:500;font-size:12px;transition:all 0.15s;text-align:center";
-    var sSelect = "width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:5px;margin-bottom:8px;font-size:13px;background:white";
+    var sSelect = "width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:5px;margin-bottom:8px;font-size:13px;background:white;cursor:pointer";
     var sTextarea = "width:100%;border:1px solid #cbd5e1;border-radius:5px;padding:8px;font-family:inherit;resize:vertical;height:55px;font-size:13px;box-sizing:border-box";
     var sInput = "width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:5px;font-size:13px;box-sizing:border-box";
     var sLabel = "display:block;margin-bottom:4px;font-weight:600;font-size:12px;color:#334155";
@@ -58,7 +60,7 @@
     var sBtnCancel = "padding:8px 16px;border:1px solid #cbd5e1;background:white;border-radius:5px;cursor:pointer;font-size:13px;color:#475569;font-weight:500";
     var sBtnGenerate = "padding:8px 16px;border:none;background:#2563eb;color:white;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600;transition:opacity 0.2s";
     var sTagContainer = "display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px";
-    var sLoading = "position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.85);display:flex;justify-content:center;align-items:center;z-index:10;font-size:14px;color:#475569;font-weight:500;flex-direction:column;gap:10px";
+    var sLoading = "position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.88);display:flex;justify-content:center;align-items:center;z-index:10;font-size:14px;color:#475569;font-weight:500;flex-direction:column;gap:10px";
 
     var createElement = function(tag, css) {
         var el = document.createElement(tag);
@@ -109,7 +111,7 @@
     // --- IndexedDB Hybrid Cache ---
     var idb = {
         dbName: 'Toast_QA_Tracker_Cache',
-        dbVersion: 1,
+        dbVersion: 2,
         storeName: 'app_cache',
         open: function() {
             var self = this;
@@ -134,9 +136,7 @@
                     try {
                         var tx = db.transaction(self.storeName, 'readonly');
                         var req = tx.objectStore(self.storeName).get(key);
-                        req.onsuccess = function() {
-                            resolve(req.result ? req.result.value : null);
-                        };
+                        req.onsuccess = function() { resolve(req.result ? req.result.value : null); };
                         req.onerror = function() { resolve(null); };
                     } catch(e) { resolve(null); }
                 });
@@ -168,10 +168,7 @@
         var url = "https://generativelanguage.googleapis.com/v1beta/models/" + (GEMINI_MODEL || DEFAULT_GEMINI_MODEL) + ":generateContent?key=" + GEMINI_API_KEY;
         var contents = [{ role: "user", parts: [{ text: prompt }] }];
         var payload = { contents: contents };
-
-        if (systemInstruction) {
-            payload.systemInstruction = { parts: [{ text: systemInstruction }] };
-        }
+        if (systemInstruction) payload.systemInstruction = { parts: [{ text: systemInstruction }] };
 
         return fetch(url, {
             method: 'POST',
@@ -205,7 +202,6 @@
         if (els.length > 0) {
             return Array.from(els).map(function(el){ return el.innerText.trim(); }).join("\n");
         }
-        // Fallback selectors if Stella changes markup
         var alt = document.querySelector('.transcript-container, [data-testid="transcript"], .conversation-body');
         return alt ? alt.innerText.trim() : "";
     };
@@ -216,7 +212,7 @@
         return h4 && h4.nextElementSibling ? h4.nextElementSibling.textContent.trim() : "";
     };
 
-    var getAdvocateName = function() {
+    var getAdvocateNameFromPage = function() {
         return extractText('.review-info h2');
     };
 
@@ -240,7 +236,7 @@
         return "";
     };
 
-    // --- UI Construction ---
+    // --- UI Creation ---
     var overlay = createElement("div", sOverlay);
     overlay.id = "qa-modal-overlay";
     var modal = createElement("div", sModal);
@@ -258,15 +254,13 @@
         loader.style.display = "none";
     };
 
-    // Header & Dragging
     var isDragging = false, startX = 0, startY = 0, initialX = 0, initialY = 0;
     var header = createElement("div", sHeader);
     var headerTitle = createElement("span");
     headerTitle.innerHTML = "🍞 <strong>Toast QA Tracker</strong>";
     header.appendChild(headerTitle);
 
-    var toolsContainer = createElement("div");
-    toolsContainer.style.cssText = "position:relative;display:flex;align-items:center;gap:8px";
+    var toolsContainer = createElement("div", "position:relative;display:flex;align-items:center;gap:8px");
 
     var createMenuItem = function(text, onClick, parentMenu) {
         var item = createElement("div");
@@ -282,7 +276,6 @@
         return item;
     };
 
-    // AI Tools Button (🛠️)
     var btnAiTools = createElement("span");
     btnAiTools.textContent = "🛠️";
     btnAiTools.title = "AI Tools";
@@ -293,7 +286,6 @@
     var aiToolsMenu = createElement("div");
     aiToolsMenu.style.cssText = "position:absolute;top:100%;right:32px;background:white;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,0.12);display:none;flex-direction:column;min-width:180px;z-index:100001;margin-top:6px;overflow:hidden";
 
-    // Settings Button (⚙️)
     var btnTools = createElement("span");
     btnTools.textContent = "⚙️";
     btnTools.title = "Settings";
@@ -329,7 +321,6 @@
     toolsContainer.appendChild(toolsMenu);
     header.appendChild(toolsContainer);
 
-    // Modal drag logic
     addListener(header, "mousedown", function(e){
         if(e.target === header || e.target.parentNode === header || e.target === headerTitle || e.target.tagName === 'STRONG') {
             isDragging = true;
@@ -353,158 +344,137 @@
     var contentContainer = createElement("div", sContent);
 
     // --- Header Fields ---
+    // User requested: "Before the Interaction ID, place the Agent's Name dropdown"
     var headerFieldsContainer = createElement("div");
     headerFieldsContainer.style.cssText = "display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #e2e8f0";
 
-    var createCompactField = function(placeholder, icon, type, fullWidth, useLabel, initialValue, options) {
-        type = type || "text";
-        var wrapper = createElement("div");
-        if(fullWidth) wrapper.style.gridColumn = "1 / -1";
-
-        if(useLabel) {
-            var lbl = createElement("label", sLabel);
-            lbl.textContent = placeholder;
-            var input = createElement("input", sInput);
-            input.type = type;
-            if(initialValue) input.value = initialValue;
-            wrapper.appendChild(lbl);
-            wrapper.appendChild(input);
-            return { div: wrapper, input: input };
-        } else {
-            var container = createElement("div");
-            container.style.cssText = "display:flex;align-items:center;border:1px solid #cbd5e1;border-radius:5px;padding:6px 10px;background:white;transition:border-color 0.2s";
-            var ico = createElement("span");
-            ico.textContent = icon;
-            ico.style.cssText = "margin-right:8px;font-size:14px;opacity:0.7;user-select:none;min-width:18px;text-align:center";
-
-            var input;
-            if(options && options.length > 0) {
-                input = createElement("select");
-                input.style.cssText = "width:100%;border:none;outline:none;font-family:inherit;font-size:13px;background:transparent;cursor:pointer";
-                options.forEach(function(opt){
-                    var o = createElement("option");
-                    o.value = opt;
-                    o.textContent = opt;
-                    input.appendChild(o);
-                });
-            } else if(type === "textarea") {
-                input = createElement("textarea");
-                input.style.cssText = "width:100%;border:none;outline:none;font-family:inherit;font-size:13px;resize:vertical;height:60px;padding:0";
-                input.placeholder = placeholder;
-                container.style.alignItems = "flex-start";
-                ico.style.marginTop = "3px";
-                if(initialValue) input.value = initialValue;
-            } else {
-                input = createElement("input");
-                input.type = type;
-                input.style.cssText = "width:100%;border:none;outline:none;font-family:inherit;font-size:13px;background:transparent";
-                input.placeholder = placeholder;
-                if(initialValue) input.value = initialValue;
-            }
-
-            addListener(input, "focus", function(){ container.style.borderColor = "#2563eb"; });
-            addListener(input, "blur", function(){ container.style.borderColor = "#cbd5e1"; });
-
-            container.appendChild(ico);
-            container.appendChild(input);
-            wrapper.appendChild(container);
-            return { div: wrapper, input: input };
-        }
+    var createFieldWrapper = function(label, element, fullWidth) {
+        var wrap = createElement("div");
+        if (fullWidth) wrap.style.gridColumn = "1 / -1";
+        var lbl = createElement("label", sLabel);
+        lbl.textContent = label;
+        wrap.appendChild(lbl);
+        wrap.appendChild(element);
+        return wrap;
     };
 
-    var fInteractionId = createCompactField("Interaction ID", "🆔", "text", false, false, getInteractionId());
-    var fAdvocateName = createCompactField("Advocate Name", "👤", "text", false, false, getAdvocateName());
+    // 1. Agent's Name Dropdown (BEFORE Interaction ID)
+    var selAgent = createElement("select", sSelect);
+    selAgent.innerHTML = "<option value=''>-- Select Assigned Agent --</option>";
+    var wrapAgent = createFieldWrapper("👤 Agent's Name", selAgent);
 
+    // 2. Interaction ID
+    var inpInteractionId = createElement("input", sInput);
+    inpInteractionId.placeholder = "Interaction ID...";
+    inpInteractionId.value = getInteractionId();
+    var wrapInteractionId = createFieldWrapper("🆔 Interaction ID", inpInteractionId);
+
+    // 3. Call ANI / DNIS
     var aniOpts = getAniDnisOptions();
     var defaultAni = (aniOpts.length > 1) ? aniOpts[1] : (aniOpts[0] || "");
-    var fCallAni = createCompactField("Call ANI/DNIS", "📞", "text", false, false, defaultAni, aniOpts);
-    if(fCallAni.input.tagName === 'SELECT' && defaultAni) fCallAni.input.value = defaultAni;
+    var selAni;
+    if (aniOpts.length > 0) {
+        selAni = createElement("select", sSelect);
+        aniOpts.forEach(function(o){
+            var opt = createElement("option");
+            opt.value = o; opt.textContent = o;
+            if (o === defaultAni) opt.selected = true;
+            selAni.appendChild(opt);
+        });
+    } else {
+        selAni = createElement("input", sInput);
+        selAni.placeholder = "ANI / DNIS...";
+    }
+    var wrapAni = createFieldWrapper("📞 Call ANI/DNIS", selAni);
 
-    headerFieldsContainer.appendChild(fInteractionId.div);
-    headerFieldsContainer.appendChild(fAdvocateName.div);
-    headerFieldsContainer.appendChild(fCallAni.div);
+    headerFieldsContainer.appendChild(wrapAgent);
+    headerFieldsContainer.appendChild(wrapInteractionId);
+    headerFieldsContainer.appendChild(wrapAni);
 
+    // Case # & Call Duration Row
     var caseDurationRow = createElement("div", "grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;");
-    var fCaseNumber = createCompactField("Case #", "🔢");
-    var fCallDuration = createCompactField("Call Duration", "⏱️", "text", false, false, getCallDuration());
-    caseDurationRow.appendChild(fCaseNumber.div);
-    caseDurationRow.appendChild(fCallDuration.div);
+    var inpCaseNo = createElement("input", sInput);
+    inpCaseNo.placeholder = "Case #...";
+    var inpDuration = createElement("input", sInput);
+    inpDuration.placeholder = "Call Duration (sec)...";
+    inpDuration.value = getCallDuration();
+    caseDurationRow.appendChild(createFieldWrapper("🔢 Case #", inpCaseNo));
+    caseDurationRow.appendChild(createFieldWrapper("⏱️ Call Duration", inpDuration));
     headerFieldsContainer.appendChild(caseDurationRow);
 
+    // Date Row: Date of Interaction & Date of Evaluation (Equivalent to Assignments Date)
     var dateRow = createElement("div", "grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;");
-    var fDateInteraction = createCompactField("Date of Interaction", "", "date", false, true);
-    var fDateEvaluation = createCompactField("Date of Evaluation", "", "date", false, true);
-    fDateEvaluation.input.valueAsDate = new Date();
-    dateRow.appendChild(fDateInteraction.div);
-    dateRow.appendChild(fDateEvaluation.div);
+    var inpDateInteraction = createElement("input", sInput);
+    inpDateInteraction.type = "date";
+    var inpDateEvaluation = createElement("input", sInput);
+    inpDateEvaluation.type = "date";
+    inpDateEvaluation.valueAsDate = new Date();
+    dateRow.appendChild(createFieldWrapper("📅 Date of Interaction", inpDateInteraction));
+    dateRow.appendChild(createFieldWrapper("📅 Date of Evaluation (Assignment Date)", inpDateEvaluation));
     headerFieldsContainer.appendChild(dateRow);
 
-    var fCaseCategory = createCompactField("Case Category", "🗂️", "text", true);
-    addListener(fCaseCategory.input, "keydown", function(e){
-        if(e.key === "Enter" && fCaseCategory.input.value.trim() === "") {
+    // Case Category
+    var inpCategory = createElement("input", sInput);
+    inpCategory.placeholder = "Case Category (e.g. Payroll > ...)";
+    addListener(inpCategory, "keydown", function(e){
+        if(e.key === "Enter" && inpCategory.value.trim() === "") {
             e.preventDefault();
-            fCaseCategory.input.value = "Payroll > ";
+            inpCategory.value = "Payroll > ";
         }
     });
-    headerFieldsContainer.appendChild(fCaseCategory.div);
+    headerFieldsContainer.appendChild(createFieldWrapper("🗂️ Case Category", inpCategory, true));
 
-    var fIssueConcern = createCompactField("Issue/Concern", "✍️", "textarea", true);
-
-    // AI Summary Button (✨)
+    // Issue / Concern with ✨ Gemini Summary button
+    var txtIssue = createElement("textarea", sTextarea);
+    txtIssue.placeholder = "Issue / Concern description...";
+    var issueBox = createElement("div", "position:relative");
     var btnSummary = createElement("span");
     btnSummary.textContent = "✨";
     btnSummary.title = "Generate Summary from Transcript using Gemini AI";
     btnSummary.style.cssText = "position:absolute;right:8px;top:8px;cursor:pointer;font-size:16px;opacity:0.7;user-select:none;z-index:5";
+    issueBox.appendChild(txtIssue);
+    issueBox.appendChild(btnSummary);
+    headerFieldsContainer.appendChild(createFieldWrapper("✍️ Issue/Concern", issueBox, true));
 
-    var issueContainer = fIssueConcern.div.firstChild;
-    if(issueContainer) {
-        issueContainer.style.position = "relative";
-        issueContainer.appendChild(btnSummary);
-        addListener(btnSummary, "mouseenter", function(){ btnSummary.style.opacity = "1"; });
-        addListener(btnSummary, "mouseleave", function(){ btnSummary.style.opacity = "0.7"; });
-        addListener(btnSummary, "click", function(e){
-            e.stopPropagation();
-            var transcript = extractTranscript();
-            if(!transcript) return showToast("No transcript found on page.", true);
+    addListener(btnSummary, "mouseenter", function(){ btnSummary.style.opacity = "1"; });
+    addListener(btnSummary, "mouseleave", function(){ btnSummary.style.opacity = "0.7"; });
+    addListener(btnSummary, "click", function(e){
+        e.stopPropagation();
+        var transcript = extractTranscript();
+        if(!transcript) return showToast("No transcript found on page.", true);
 
-            var origIcon = btnSummary.textContent;
-            btnSummary.textContent = "⏳";
-            btnSummary.style.cursor = "wait";
+        var origIcon = btnSummary.textContent;
+        btnSummary.textContent = "⏳";
+        btnSummary.style.cursor = "wait";
 
-            var prompt = "Summarize the customer's main issue, question, or concern in 1-2 concise sentences based on this interaction transcript:\n\n" + transcript;
-            callGemini(prompt, "You are a concise QA evaluator. Output ONLY the summary sentence(s), no extra conversational text.")
-                .then(function(summary){
-                    fIssueConcern.input.value = summary;
-                    fIssueConcern.input.dispatchEvent(new Event('input'));
-                    showToast("Summary generated with Gemini!", false);
-                })
-                .catch(function(err){
-                    showToast("Summary failed: " + err.message, true);
-                })
-                .finally(function(){
-                    btnSummary.textContent = origIcon;
-                    btnSummary.style.cursor = "pointer";
-                });
-        });
-    }
-    headerFieldsContainer.appendChild(fIssueConcern.div);
+        var prompt = "Summarize the customer's main issue or question in 1-2 concise sentences based on this interaction transcript:\n\n" + transcript;
+        callGemini(prompt, "You are a concise QA evaluator. Output ONLY the summary sentence(s).")
+            .then(function(summary){
+                txtIssue.value = summary;
+                txtIssue.dispatchEvent(new Event('input'));
+                showToast("Summary generated with Gemini!", false);
+            })
+            .catch(function(err){ showToast("Summary failed: " + err.message, true); })
+            .finally(function(){ btnSummary.textContent = origIcon; btnSummary.style.cursor = "pointer"; });
+    });
+
     contentContainer.appendChild(headerFieldsContainer);
 
-    // --- Feedback Text Updating ---
+    // --- Dynamic Rubric & Feedback Updates ---
     var updateText = function(key) {
         var s = state[key];
         if(!s || !s.domTextarea) return;
 
         var txt = "";
-        var cleanText = function(t) {
-            return (t || "").replace(/\s*Source:[\s\S]*$/i, "").trim();
-        };
+        var cleanText = function(t) { return (t || "").replace(/\s*Source:[\s\S]*$/i, "").trim(); };
 
         if(s.selectedTags && s.selectedTags.length > 0) {
             txt = s.selectedTags.map(function(t){ return cleanText(t.feedbackText || t.feedback_text); }).join(" ");
         } else {
             var genFeedback = globalFeedbackGeneral.find(function(f){
-                return f.optionIndex === s.selIndex || f.option_id === s.sel;
+                return (f.sectionIndex === s.secIdx || f.section_index === s.secIdx) &&
+                       (f.itemIndex === s.itemIdx || f.item_index === s.itemIdx) &&
+                       (f.optionIndex === s.selIndex || f.option_index === s.selIndex);
             });
             if (genFeedback) {
                 txt = cleanText(genFeedback.feedbackText || genFeedback.feedback_text);
@@ -523,288 +493,355 @@
         });
     };
 
-    // --- Settings Modal ---
-    var showSettingsModal = function() {
-        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:rgba(0,0,0,0.4); pointer-events:auto; align-items:center");
-        var pModal = createElement("div", sModal + "; height:auto; max-height:85vh; width:520px; cursor:default; user-select:auto");
-        var pHeader = createElement("div", sHeader + "; cursor:move");
-        pHeader.innerHTML = "<span>⚙️ Settings & Configuration</span>";
-        var pClose = createElement("span", "cursor:pointer;font-size:18px;color:#94a3b8");
-        pClose.textContent = "×";
-        addListener(pClose, "click", function(){ pOverlay.remove(); });
-        pHeader.appendChild(pClose);
+    // --- Form Rendering by Rubric Object ---
+    var renderRubric = function(rubricData, feedbackChips, feedbackGeneral) {
+        contentContainer.querySelectorAll('.rubric-section').forEach(function(el){ el.remove(); });
+        state = {};
+        currentRubric = rubricData || DEFAULT_FALLBACK_RUBRIC;
 
-        var pBody = createElement("div", "padding:20px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px");
+        var sections = [];
+        try {
+            sections = (typeof currentRubric.structure === 'string') ? JSON.parse(currentRubric.structure) : (currentRubric.structure || []);
+        } catch(e) { sections = []; }
 
-        // Apps Script API URL
-        var grpApi = createElement("div");
-        var lblApi = createElement("label", sLabel);
-        lblApi.textContent = "Apps Script API Web App URL";
-        var inpApi = createElement("input", sInput);
-        inpApi.placeholder = "https://script.google.com/macros/s/.../exec";
-        inpApi.value = API_BASE_URL;
-        grpApi.appendChild(lblApi);
-        grpApi.appendChild(inpApi);
-        pBody.appendChild(grpApi);
+        globalFeedbackTags = feedbackChips || [];
+        globalFeedbackGeneral = feedbackGeneral || [];
 
-        // QA User Email
-        var grpEmail = createElement("div");
-        var lblEmail = createElement("label", sLabel);
-        lblEmail.textContent = "Your Toast QA Email";
-        var inpEmail = createElement("input", sInput);
-        inpEmail.placeholder = "your.name@toasttab.com";
-        inpEmail.value = QA_EMAIL;
-        grpEmail.appendChild(lblEmail);
-        grpEmail.appendChild(inpEmail);
-        pBody.appendChild(grpEmail);
+        sections.forEach(function(section, secIdx){
+            var groupTitle = createElement("div", sGroupHeader + ";rubric-section");
+            groupTitle.className = "rubric-section";
+            groupTitle.textContent = section.name || section.title || ("Section " + (secIdx + 1));
+            contentContainer.appendChild(groupTitle);
 
-        // Gemini API Key
-        var grpKey = createElement("div");
-        var lblKey = createElement("label", sLabel);
-        lblKey.textContent = "Your Gemini API Key (from Google AI Studio)";
-        var inpKey = createElement("input", sInput);
-        inpKey.type = "password";
-        inpKey.placeholder = "AIzaSy...";
-        inpKey.value = GEMINI_API_KEY;
-        grpKey.appendChild(lblKey);
-        grpKey.appendChild(inpKey);
-        pBody.appendChild(grpKey);
+            var items = section.items || [];
+            items.forEach(function(item, itemIdx){
+                var key = secIdx + ":" + itemIdx;
+                var itemContainer = createElement("div", sItemContainer);
+                itemContainer.className = "rubric-section";
+                var itemHeader = createElement("div", sItemHeader);
+                var leftGroup = createElement("div", "display:flex;align-items:center;gap:10px");
 
-        // Gemini Model
-        var grpModel = createElement("div");
-        var lblModel = createElement("label", sLabel);
-        lblModel.textContent = "Gemini Model";
-        var inpModel = createElement("input", sInput);
-        inpModel.value = GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
-        grpModel.appendChild(lblModel);
-        grpModel.appendChild(inpModel);
-        pBody.appendChild(grpModel);
-
-        var pFooter = createElement("div", sFooter);
-        var pBtnSave = createElement("button", sBtnGenerate);
-        pBtnSave.textContent = "Save Settings";
-        addListener(pBtnSave, "click", function(){
-            API_BASE_URL = inpApi.value.trim();
-            QA_EMAIL = inpEmail.value.trim();
-            GEMINI_API_KEY = inpKey.value.trim();
-            GEMINI_MODEL = inpModel.value.trim() || DEFAULT_GEMINI_MODEL;
-
-            storage.set('api_url', API_BASE_URL);
-            storage.set('qa_email', QA_EMAIL);
-            storage.set('gemini_key', GEMINI_API_KEY);
-            storage.set('gemini_model', GEMINI_MODEL);
-
-            showToast("Settings saved successfully!", false);
-            pOverlay.remove();
-            // Re-sync if URL provided
-            if (API_BASE_URL) checkAndSyncData(true);
-        });
-        pFooter.appendChild(pBtnSave);
-
-        pModal.appendChild(pHeader);
-        pModal.appendChild(pBody);
-        pModal.appendChild(pFooter);
-        pOverlay.appendChild(pModal);
-        document.body.appendChild(pOverlay);
-    };
-
-    toolsMenu.appendChild(createMenuItem("⚙️ Configure API & Gemini Key", showSettingsModal, toolsMenu));
-    toolsMenu.appendChild(createMenuItem("🔄 Force Refresh Database", function(){
-        checkAndSyncData(true);
-    }, toolsMenu));
-
-    // --- Case Notes Checker Modal ---
-    var showCaseNotesCheckerModal = function() {
-        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:rgba(0,0,0,0.4); pointer-events:auto; align-items:center");
-        var pModal = createElement("div", sModal + "; height:85vh; max-height:850px; width:640px; cursor:default; user-select:auto");
-        var pHeader = createElement("div", sHeader + "; cursor:move");
-        pHeader.innerHTML = "<span>📋 Case Notes Checker</span>";
-        var pClose = createElement("span", "cursor:pointer;font-size:18px;color:#94a3b8");
-        pClose.textContent = "×";
-        addListener(pClose, "click", function(){ pOverlay.remove(); });
-        pHeader.appendChild(pClose);
-
-        var pBody = createElement("div", "padding:18px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;user-select:text");
-
-        var grpSubject = createElement("div");
-        grpSubject.appendChild(createElement("label", sLabel)).textContent = "Subject Line";
-        var inpSubject = createElement("input", sInput);
-        inpSubject.placeholder = "Enter Subject Line...";
-        grpSubject.appendChild(inpSubject);
-        pBody.appendChild(grpSubject);
-
-        var grpNotes = createElement("div");
-        grpNotes.appendChild(createElement("label", sLabel)).textContent = "Case Notes";
-        var txtNotes = createElement("textarea", sTextarea + "; height:140px");
-        txtNotes.placeholder = "Paste Case Notes here...";
-        grpNotes.appendChild(txtNotes);
-        pBody.appendChild(grpNotes);
-
-        var resBox = createElement("div", "padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;line-height:1.6;white-space:pre-wrap;min-height:100px;user-select:text");
-        resBox.textContent = "Analysis results will appear here...";
-        pBody.appendChild(resBox);
-
-        var pFooter = createElement("div", sFooter);
-        var pBtnGen = createElement("button", sBtnGenerate);
-        pBtnGen.textContent = "Analyze with Gemini";
-
-        addListener(pBtnGen, "click", function(){
-            var transcript = extractTranscript();
-            var subject = inpSubject.value.trim();
-            var notes = txtNotes.value.trim();
-
-            if (!transcript) return showToast("No transcript found on page", true);
-            if (!subject) return showToast("Subject Line is required", true);
-            if (!notes) return showToast("Case Notes are required", true);
-
-            pBtnGen.disabled = true;
-            pBtnGen.textContent = "Analyzing... ⏳";
-            resBox.textContent = "🚀 AI is analyzing case notes against transcript...";
-
-            var prompt = "You are an expert QA Evaluator analyzing customer service case notes against the actual interaction transcript.\n\n" +
-                         "TRANSCRIPT:\n" + transcript + "\n\n" +
-                         "SUBJECT LINE:\n" + subject + "\n\n" +
-                         "CASE NOTES:\n" + notes + "\n\n" +
-                         "Please evaluate:\n" +
-                         "1. Accuracy of notes compared to what was discussed.\n" +
-                         "2. Missing critical details (actions taken, troubleshooting steps, customer issue).\n" +
-                         "3. Proper formatting, professionalism, and clarity.\n" +
-                         "4. Provide a 1-sentence SUMMARY of the issue.\n\n" +
-                         "Format your output clearly with headings.";
-
-            callGemini(prompt, "You are an objective QA evaluator. Provide actionable, professional feedback.")
-                .then(function(result){
-                    resBox.textContent = result;
-                    showToast("Analysis complete!", false);
-
-                    // Auto-fill Issue/Concern if SUMMARY found
-                    var match = result.match(/SUMMARY:?\s*([\s\S]*?)(?:\n\n|$)/i);
-                    if (match && match[1] && fIssueConcern.input) {
-                        fIssueConcern.input.value = match[1].trim();
-                        fIssueConcern.input.dispatchEvent(new Event('input'));
-                    }
-                })
-                .catch(function(err){
-                    resBox.textContent = "❌ Error: " + err.message;
-                    showToast(err.message, true);
-                })
-                .finally(function(){
-                    pBtnGen.disabled = false;
-                    pBtnGen.textContent = "Analyze with Gemini";
+                var checkbox = createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.style.cursor = "pointer";
+                addListener(checkbox, "click", function(e){
+                    e.stopPropagation();
+                    state[key].checked = e.target.checked;
                 });
+
+                var label = createElement("span");
+                var cleanText = (item.question || item.shortName || item.short_name || item.text || ("Item " + (itemIdx + 1))).replace(/^\d+\.\s*/, "");
+                label.textContent = (itemIdx + 1) + ". " + cleanText;
+                leftGroup.appendChild(checkbox);
+                leftGroup.appendChild(label);
+
+                var arrow = createElement("span", "font-size:10px;color:#94a3b8");
+                arrow.textContent = "▼";
+                itemHeader.appendChild(leftGroup);
+                itemHeader.appendChild(arrow);
+
+                var itemBody = createElement("div", sItemBody);
+                var tagContainer = createElement("div", sTagContainer);
+
+                var rawOptions = item.options || [
+                    { id: 'yes', label: 'Yes', points: 10, color: 'green', isDefault: true },
+                    { id: 'no', label: 'No', points: 0, color: 'red', isDefault: false }
+                ];
+                var options = rawOptions.map(function(opt, idx){
+                    return {
+                        id: opt.id || String(idx),
+                        label: opt.label || opt.text || 'Option',
+                        points: opt.points !== undefined ? opt.points : 0,
+                        color: opt.color || (idx === 0 ? 'green' : 'red'),
+                        isDefault: opt.isDefault === true
+                    };
+                });
+
+                var defaultIdx = options.findIndex(function(o){ return o.isDefault === true; });
+                if (defaultIdx === -1) defaultIdx = 0;
+
+                state[key] = {
+                    id: item.id || (secIdx + "_" + itemIdx),
+                    secIdx: secIdx,
+                    itemIdx: itemIdx,
+                    sel: options[defaultIdx].id,
+                    selIndex: defaultIdx,
+                    text: "",
+                    checked: false,
+                    groupName: section.name || section.title,
+                    itemId: itemIdx + 1,
+                    options: options,
+                    selectedTags: [],
+                    domTextarea: null,
+                    refreshUI: null
+                };
+
+                var updateHeaderBg = function() {
+                    var theme = getTheme({ options: options }, state[key].sel);
+                    var cols = getColors(theme);
+                    itemHeader.style.background = cols.header;
+                };
+
+                var renderTags = function() {
+                    tagContainer.innerHTML = "";
+                    var currentOptIdx = state[key].selIndex;
+                    var relevantTags = globalFeedbackTags.filter(function(t){
+                        return (t.sectionIndex === secIdx || t.section_index === secIdx) &&
+                               (t.itemIndex === itemIdx || t.item_index === itemIdx) &&
+                               (t.optionIndex === currentOptIdx || t.option_index === currentOptIdx);
+                    });
+
+                    relevantTags.forEach(function(tagData){
+                        var tagBtn = createElement("div");
+                        var labelText = tagData.buttonLabel || tagData.button_label || tagData.tag_label || "Feedback";
+                        var isActive = state[key].selectedTags.some(function(t){
+                            return (t.id && t.id === tagData.id) || (t.buttonLabel === labelText);
+                        });
+
+                        var theme = getTheme({ options: options }, state[key].sel);
+                        var cols = getColors(theme);
+
+                        if(isActive) {
+                            tagBtn.style.cssText = "padding:4px 9px;border:1px solid " + cols.border + ";border-radius:12px;font-size:11px;cursor:pointer;background:" + cols.bg + ";color:" + cols.txt + ";font-weight:600;transition:all 0.15s";
+                        } else {
+                            tagBtn.style.cssText = "padding:4px 9px;border:1px solid #cbd5e1;border-radius:12px;font-size:11px;cursor:pointer;background:#f8fafc;color:#334155;transition:all 0.15s";
+                        }
+                        tagBtn.textContent = labelText;
+
+                        addListener(tagBtn, "click", function(){
+                            if(isActive) {
+                                state[key].selectedTags = state[key].selectedTags.filter(function(t){
+                                    return (t.id && t.id !== tagData.id) && (t.buttonLabel !== labelText);
+                                });
+                            } else {
+                                state[key].selectedTags.push(tagData);
+                            }
+                            renderTags();
+                            updateHeaderBg();
+                            updateText(key);
+                        });
+                        tagContainer.appendChild(tagBtn);
+                    });
+                };
+
+                // Button options group
+                var btnGroup = createElement("div", sBtnGroup);
+                var optionButtons = [];
+
+                options.forEach(function(opt, optIdx){
+                    var btn = createElement("button");
+                    btn.textContent = opt.label;
+                    btn.style.cssText = sBtnBase;
+
+                    addListener(btn, "click", function(){
+                        state[key].sel = opt.id;
+                        state[key].selIndex = optIdx;
+                        state[key].selectedTags = [];
+                        updateBtnStyles();
+                        renderTags();
+                        updateHeaderBg();
+                        updateText(key);
+                    });
+
+                    btnGroup.appendChild(btn);
+                    optionButtons.push({ dom: btn, id: opt.id, idx: optIdx });
+                });
+
+                var updateBtnStyles = function() {
+                    var val = state[key].sel;
+                    var theme = getTheme({ options: options }, val);
+                    var cols = getColors(theme);
+                    var activeStyle = sBtnBase + ";background:" + cols.bg + ";color:" + cols.txt + ";border-color:" + cols.border;
+                    var inactiveStyle = sBtnBase + ";background:white;color:#475569;border-color:#cbd5e1";
+
+                    optionButtons.forEach(function(b){
+                        b.dom.style.cssText = (b.id === val) ? activeStyle : inactiveStyle;
+                    });
+                };
+
+                state[key].refreshUI = function() {
+                    updateBtnStyles();
+                    checkbox.checked = state[key].checked;
+                    renderTags();
+                    updateHeaderBg();
+                };
+
+                updateBtnStyles();
+                itemBody.appendChild(btnGroup);
+                itemBody.appendChild(tagContainer);
+
+                var textarea = createElement("textarea", sTextarea);
+                state[key].domTextarea = textarea;
+                textarea.placeholder = "Comments...";
+                addListener(textarea, "input", function(e){
+                    state[key].text = e.target.value;
+                    updateHeaderBg();
+                });
+                itemBody.appendChild(textarea);
+
+                addListener(itemHeader, "click", function(){
+                    var isExpanded = itemBody.style.display === "block";
+                    itemBody.style.display = isExpanded ? "none" : "block";
+                    arrow.textContent = isExpanded ? "▼" : "▲";
+                    updateHeaderBg();
+                    if(!isExpanded) renderTags();
+                });
+
+                itemContainer.appendChild(itemHeader);
+                itemContainer.appendChild(itemBody);
+                contentContainer.appendChild(itemContainer);
+
+                updateHeaderBg();
+                updateText(key);
+            });
         });
 
-        pFooter.appendChild(pBtnGen);
-        pModal.appendChild(pHeader);
-        pModal.appendChild(pBody);
-        pModal.appendChild(pFooter);
-        pOverlay.appendChild(pModal);
-        document.body.appendChild(pOverlay);
+        if(inpInteractionId.value) checkExistingRecord();
     };
 
-    // --- Chat Checker Modal ---
-    var showChatCheckerModal = function() {
-        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:rgba(0,0,0,0.4); pointer-events:auto; align-items:center");
-        var pModal = createElement("div", sModal + "; height:85vh; max-height:850px; width:640px; cursor:default; user-select:auto");
-        var pHeader = createElement("div", sHeader + "; cursor:move");
-        pHeader.innerHTML = "<span>💬 Chat Checker</span>";
-        var pClose = createElement("span", "cursor:pointer;font-size:18px;color:#94a3b8");
-        pClose.textContent = "×";
-        addListener(pClose, "click", function(){ pOverlay.remove(); });
-        pHeader.appendChild(pClose);
+    // --- Switch Rubric when Assignment is Selected ---
+    var switchRubricById = function(rubricId) {
+        if (!rubricId) return;
+        var found = allRubrics.find(function(r){ return String(r.id) === String(rubricId); });
+        if (found) {
+            console.log("Switching to Rubric:", found.name, "(ID: " + rubricId + ")");
+            renderRubric(found, globalFeedbackTags, globalFeedbackGeneral);
+            showToast("Switched to Rubric: " + found.name, false);
+        }
+    };
 
-        var pBody = createElement("div", "padding:18px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;user-select:text");
+    // --- Populate Agent Dropdown based on Date of Evaluation ---
+    var updateAgentDropdown = function() {
+        var selectedDate = inpDateEvaluation.value; // YYYY-MM-DD
+        selAgent.innerHTML = "";
 
-        var grpTranscript = createElement("div");
-        grpTranscript.appendChild(createElement("label", sLabel)).textContent = "Chat Transcript (Pasted or Uploaded .txt)";
-        var txtTranscript = createElement("textarea", sTextarea + "; height:120px");
-        txtTranscript.placeholder = "Paste chat transcript text here...";
-        var inpFile = createElement("input");
-        inpFile.type = "file";
-        inpFile.accept = ".txt";
-        inpFile.style.cssText = "margin-top:4px;font-size:12px";
-        addListener(inpFile, "change", function(e){
-            var file = e.target.files[0];
-            if (file) {
-                var reader = new FileReader();
-                reader.onload = function(ev) { txtTranscript.value = ev.target.result; showToast("File loaded!", false); };
-                reader.readAsText(file);
+        var defaultOpt = createElement("option");
+        defaultOpt.value = "";
+        defaultOpt.textContent = "-- Select Assigned Agent --";
+        selAgent.appendChild(defaultOpt);
+
+        var pageAdvocateName = getAdvocateNameFromPage().toLowerCase();
+        var matchedIndex = -1;
+
+        // Group 1: Assigned for selected date
+        var dateAssignments = globalAssignments.filter(function(a){
+            var aDate = (a.date || "").split('T')[0];
+            return aDate === selectedDate;
+        });
+
+        if (dateAssignments.length > 0) {
+            var grpDate = createElement("optgroup");
+            grpDate.label = "Assigned for Selected Date (" + selectedDate + ")";
+            dateAssignments.forEach(function(a, idx){
+                var opt = createElement("option");
+                opt.value = "asg:" + a.id;
+                var agentLabel = a.agentName || a.agentEmail || ("Agent #" + (idx + 1));
+                opt.textContent = agentLabel + (a.status === 'Completed' ? ' [✓ Done]' : '');
+                opt.dataset.rubricId = a.rubricId || "";
+                opt.dataset.agentName = a.agentName || a.agentEmail || "";
+                opt.dataset.asgId = a.id;
+                grpDate.appendChild(opt);
+
+                if (pageAdvocateName && agentLabel.toLowerCase().includes(pageAdvocateName)) {
+                    opt.selected = true;
+                    selectedAssignmentId = a.id;
+                }
+            });
+            selAgent.appendChild(grpDate);
+        }
+
+        // Group 2: Assigned in previous days (2-month window)
+        var prevAssignments = globalAssignments.filter(function(a){
+            var aDate = (a.date || "").split('T')[0];
+            return aDate !== selectedDate && a.status !== 'Completed';
+        });
+
+        if (prevAssignments.length > 0) {
+            var grpPrev = createElement("optgroup");
+            grpPrev.label = "Pending Assignments (Other Days)";
+            prevAssignments.forEach(function(a){
+                var opt = createElement("option");
+                opt.value = "asg:" + a.id;
+                var agentLabel = a.agentName || a.agentEmail || "Agent";
+                var aDate = (a.date || "").split('T')[0];
+                opt.textContent = agentLabel + " (" + aDate + ")";
+                opt.dataset.rubricId = a.rubricId || "";
+                opt.dataset.agentName = a.agentName || a.agentEmail || "";
+                opt.dataset.asgId = a.id;
+                grpPrev.appendChild(opt);
+            });
+            selAgent.appendChild(grpPrev);
+        }
+
+        // Group 3: Unassigned / Manual
+        var grpOther = createElement("optgroup");
+        grpOther.label = "Manual / Unassigned";
+        var optCustom = createElement("option");
+        optCustom.value = "custom";
+        optCustom.textContent = "✏️ Custom / Unassigned Advocate";
+        grpOther.appendChild(optCustom);
+        selAgent.appendChild(grpOther);
+    };
+
+    // When an agent is chosen from the dropdown:
+    addListener(selAgent, "change", function(e){
+        var val = e.target.value;
+        var selectedOpt = selAgent.selectedOptions[0];
+
+        if (val && val.startsWith("asg:")) {
+            selectedAssignmentId = selectedOpt.dataset.asgId || "";
+            var rubricId = selectedOpt.dataset.rubricId || "";
+            var agentName = selectedOpt.dataset.agentName || "";
+
+            // Switch to that assignment's Rubric ID
+            if (rubricId) {
+                switchRubricById(rubricId);
+            }
+        } else {
+            selectedAssignmentId = "";
+        }
+    });
+
+    // When Date of Evaluation changes:
+    addListener(inpDateEvaluation, "change", function(){
+        updateAgentDropdown();
+
+        // Check if selected date is outside 2-month window
+        var selDate = inpDateEvaluation.value;
+        if (!selDate) return;
+        var parts = selDate.split('-');
+        var year = parseInt(parts[0], 10);
+        var month = parseInt(parts[1], 10) - 1; // 0-indexed
+
+        var monthKey = year + '-' + month;
+        idb.get('month_' + monthKey).then(function(cachedMonth){
+            if (!cachedMonth && API_BASE_URL) {
+                // Fetch this month on-demand
+                showLoading("Fetching assignments for " + selDate + "...");
+                var url = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
+                          'api=1&action=get_month_data&token=' + encodeURIComponent(API_TOKEN) +
+                          '&year=' + year + '&month=' + (month + 1) +
+                          '&qa_email=' + encodeURIComponent(QA_EMAIL);
+                fetch(url)
+                    .then(function(res){ return res.json(); })
+                    .then(function(mRes){
+                        if (mRes.success && Array.isArray(mRes.assignments)) {
+                            idb.set('month_' + monthKey, mRes.assignments);
+                            // Merge into globalAssignments
+                            mRes.assignments.forEach(function(ma){
+                                if (!globalAssignments.some(function(ga){ return ga.id === ma.id; })) {
+                                    globalAssignments.push(ma);
+                                }
+                            });
+                            updateAgentDropdown();
+                            showToast("Loaded assignments for " + selDate, false);
+                        }
+                    })
+                    .catch(function(){})
+                    .finally(function(){ hideLoading(); });
             }
         });
-        grpTranscript.appendChild(txtTranscript);
-        grpTranscript.appendChild(inpFile);
-        pBody.appendChild(grpTranscript);
-
-        var grpSubject = createElement("div");
-        grpSubject.appendChild(createElement("label", sLabel)).textContent = "Subject Line";
-        var inpSubject = createElement("input", sInput);
-        inpSubject.placeholder = "Enter Subject Line...";
-        grpSubject.appendChild(inpSubject);
-        pBody.appendChild(grpSubject);
-
-        var grpNotes = createElement("div");
-        grpNotes.appendChild(createElement("label", sLabel)).textContent = "Case Notes";
-        var txtNotes = createElement("textarea", sTextarea + "; height:120px");
-        txtNotes.placeholder = "Paste Case Notes here...";
-        grpNotes.appendChild(txtNotes);
-        pBody.appendChild(grpNotes);
-
-        var resBox = createElement("div", "padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;line-height:1.6;white-space:pre-wrap;min-height:100px;user-select:text");
-        resBox.textContent = "Chat analysis results will appear here...";
-        pBody.appendChild(resBox);
-
-        var pFooter = createElement("div", sFooter);
-        var pBtnGen = createElement("button", sBtnGenerate);
-        pBtnGen.textContent = "Analyze Chat with Gemini";
-
-        addListener(pBtnGen, "click", function(){
-            var ts = txtTranscript.value.trim() || extractTranscript();
-            var subject = inpSubject.value.trim();
-            var notes = txtNotes.value.trim();
-
-            if (!ts) return showToast("Transcript is required", true);
-            if (!subject) return showToast("Subject is required", true);
-            if (!notes) return showToast("Notes are required", true);
-
-            pBtnGen.disabled = true;
-            pBtnGen.textContent = "Analyzing... ⏳";
-            resBox.textContent = "🚀 AI is analyzing chat transcript and notes...";
-
-            var prompt = "Analyze this Chat support interaction against case notes:\n\n" +
-                         "CHAT TRANSCRIPT:\n" + ts + "\n\n" +
-                         "SUBJECT:\n" + subject + "\n\n" +
-                         "CASE NOTES:\n" + notes + "\n\n" +
-                         "Provide concise evaluation on:\n" +
-                         "1. Customer issue resolution\n" +
-                         "2. Advocate tone, responsiveness, and accuracy\n" +
-                         "3. Completeness of documentation\n" +
-                         "4. SUMMARY of the issue (1 sentence).";
-
-            callGemini(prompt, "You are a professional QA evaluator.")
-                .then(function(res){
-                    resBox.textContent = res;
-                    showToast("Chat analysis complete!", false);
-                })
-                .catch(function(err){
-                    resBox.textContent = "❌ Error: " + err.message;
-                    showToast(err.message, true);
-                })
-                .finally(function(){
-                    pBtnGen.disabled = false;
-                    pBtnGen.textContent = "Analyze Chat with Gemini";
-                });
-        });
-
-        pFooter.appendChild(pBtnGen);
-        pModal.appendChild(pHeader);
-        pModal.appendChild(pBody);
-        pModal.appendChild(pFooter);
-        pOverlay.appendChild(pModal);
-        document.body.appendChild(pOverlay);
-    };
-
-    aiToolsMenu.appendChild(createMenuItem("📋 Case Notes Checker", showCaseNotesCheckerModal, aiToolsMenu));
-    aiToolsMenu.appendChild(createMenuItem("💬 Chat Checker", showChatCheckerModal, aiToolsMenu));
+    });
 
     // --- Save to Google Sheets API ---
     var saveRecord = function() {
@@ -826,41 +863,41 @@
             };
         });
 
-        // Compute total score based on rubric point values
         var totalPoints = 0;
         var earnedPoints = 0;
         Object.keys(state).forEach(function(key){
             var s = state[key];
             var opt = s.options.find(function(o){ return o.id === s.sel; });
-            if (opt) {
-                var pts = Number(opt.points || 0);
-                earnedPoints += pts;
-            }
+            if (opt) earnedPoints += Number(opt.points || 0);
         });
+
+        // Resolve advocate name: from assigned agent dropdown or page
+        var selectedOpt = selAgent.selectedOptions[0];
+        var resolvedAgentName = (selectedOpt && selectedOpt.dataset.agentName) ? selectedOpt.dataset.agentName : getAdvocateNameFromPage();
 
         var payload = {
             action: 'submit_evaluation',
             token: API_TOKEN,
             qaEmail: QA_EMAIL,
             evaluationData: {
-                interactionId: fInteractionId.input.value.trim(),
-                agentName: fAdvocateName.input.value.trim(),
+                interactionId: inpInteractionId.value.trim(),
+                agentName: resolvedAgentName,
                 qaName: QA_EMAIL,
-                callAniDnis: fCallAni.input.value.trim(),
-                caseNo: fCaseNumber.input.value.trim(),
-                callDuration: fCallDuration.input.value.trim(),
-                dateOfInteraction: fDateInteraction.input.value,
-                evaluationDate: fDateEvaluation.input.value,
-                caseCategory: fCaseCategory.input.value.trim(),
-                issueConcern: fIssueConcern.input.value.trim(),
-                rubricId: (globalStructure && globalStructure.id) || '',
+                callAniDnis: selAni.value ? selAni.value.trim() : "",
+                caseNo: inpCaseNo.value.trim(),
+                callDuration: inpDuration.value.trim(),
+                dateOfInteraction: inpDateInteraction.value,
+                evaluationDate: inpDateEvaluation.value,
+                caseCategory: inpCategory.value.trim(),
+                issueConcern: txtIssue.value.trim(),
+                rubricId: (currentRubric && currentRubric.id) || '',
+                assignmentId: selectedAssignmentId || '',
                 score: earnedPoints,
                 details: items,
                 pageUrl: window.location.href
             }
         };
 
-        // Note: We use Content-Type: text/plain to avoid CORS preflight blocking in Apps Script
         return fetch(API_BASE_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
@@ -870,6 +907,12 @@
         .then(function(data){
             if(data.success) {
                 existingRecordId = data.evaluationId || data.submission_id;
+                // Mark assignment completed locally
+                if (selectedAssignmentId) {
+                    var asg = globalAssignments.find(function(a){ return a.id === selectedAssignmentId; });
+                    if (asg) asg.status = 'Completed';
+                    updateAgentDropdown();
+                }
                 return true;
             }
             throw new Error(data.message || data.error || "Save failed");
@@ -878,7 +921,7 @@
 
     // Check for previous evaluation by Interaction ID
     var checkExistingRecord = function() {
-        var iId = fInteractionId.input.value.trim();
+        var iId = inpInteractionId.value.trim();
         if(!iId || !API_BASE_URL) return;
 
         var url = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
@@ -891,13 +934,13 @@
                 if(result.success && result.data) {
                     var record = result.data;
                     existingRecordId = record.id;
-                    if(record.agentName) fAdvocateName.input.value = record.agentName;
-                    if(record.callAniDnis) fCallAni.input.value = record.callAniDnis;
-                    if(record.caseNo) fCaseNumber.input.value = record.caseNo;
-                    if(record.callDuration) fCallDuration.input.value = record.callDuration;
-                    if(record.dateOfInteraction) fDateInteraction.input.value = record.dateOfInteraction.split('T')[0];
-                    if(record.caseCategory) fCaseCategory.input.value = record.caseCategory;
-                    if(record.issueConcern) fIssueConcern.input.value = record.issueConcern;
+                    if(record.caseNo) inpCaseNo.value = record.caseNo;
+                    if(record.callDuration) inpDuration.value = record.callDuration;
+                    if(record.dateOfInteraction) inpDateInteraction.value = record.dateOfInteraction.split('T')[0];
+                    if(record.caseCategory) inpCategory.value = record.caseCategory;
+                    if(record.issueConcern) txtIssue.value = record.issueConcern;
+
+                    if (record.rubricId) switchRubricById(record.rubricId);
 
                     if (record.evaluationDetails) {
                         try {
@@ -920,12 +963,12 @@
             .catch(function(){});
     };
 
-    addListener(fInteractionId.input, 'blur', checkExistingRecord);
+    addListener(inpInteractionId, 'blur', checkExistingRecord);
 
     // --- DOM Interaction & Generation ---
     var findGroupContainer = function(name) {
         var h2s = Array.from(document.querySelectorAll('h2'));
-        var h2 = h2s.find(function(el){ return el.textContent.trim().includes(name); });
+        var h2 = h2s.find(function(el){ return el.textContent.trim().toLowerCase().includes(name.toLowerCase()); });
         return h2 ? h2.closest('.padding-xlarge') : null;
     };
 
@@ -1092,232 +1135,111 @@
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
-    // --- Form Rendering ---
-    var renderRubric = function(rubricData, feedbackChips, feedbackGeneral) {
-        contentContainer.querySelectorAll('.rubric-section').forEach(function(el){ el.remove(); });
-        state = {};
+    // --- Settings Modal ---
+    var showSettingsModal = function() {
+        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:rgba(0,0,0,0.4); pointer-events:auto; align-items:center");
+        var pModal = createElement("div", sModal + "; height:auto; max-height:85vh; width:520px; cursor:default; user-select:auto");
+        var pHeader = createElement("div", sHeader + "; cursor:move");
+        pHeader.innerHTML = "<span>⚙️ Settings & Configuration</span>";
+        var pClose = createElement("span", "cursor:pointer;font-size:18px;color:#94a3b8");
+        pClose.textContent = "×";
+        addListener(pClose, "click", function(){ pOverlay.remove(); });
+        pHeader.appendChild(pClose);
 
-        var sections = [];
-        try {
-            sections = (typeof rubricData.structure === 'string') ? JSON.parse(rubricData.structure) : (rubricData.structure || []);
-        } catch(e) {
-            sections = [];
-        }
+        var pBody = createElement("div", "padding:20px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px");
 
-        globalFeedbackTags = feedbackChips || [];
-        globalFeedbackGeneral = feedbackGeneral || [];
+        var grpApi = createElement("div");
+        grpApi.appendChild(createElement("label", sLabel)).textContent = "Apps Script API Web App URL";
+        var inpApi = createElement("input", sInput);
+        inpApi.placeholder = "https://script.google.com/macros/s/.../exec";
+        inpApi.value = API_BASE_URL;
+        grpApi.appendChild(inpApi);
+        pBody.appendChild(grpApi);
 
-        sections.forEach(function(section, secIdx){
-            var groupTitle = createElement("div", sGroupHeader + ";rubric-section");
-            groupTitle.className = "rubric-section";
-            groupTitle.textContent = section.title || section.name || ("Section " + (secIdx + 1));
-            contentContainer.appendChild(groupTitle);
+        var grpEmail = createElement("div");
+        grpEmail.appendChild(createElement("label", sLabel)).textContent = "Your Toast QA Email";
+        var inpEmail = createElement("input", sInput);
+        inpEmail.placeholder = "your.name@toasttab.com";
+        inpEmail.value = QA_EMAIL;
+        grpEmail.appendChild(inpEmail);
+        pBody.appendChild(grpEmail);
 
-            var items = section.items || [];
-            items.forEach(function(item, itemIdx){
-                var key = secIdx + ":" + itemIdx;
-                var itemContainer = createElement("div", sItemContainer);
-                itemContainer.className = "rubric-section";
-                var itemHeader = createElement("div", sItemHeader);
-                var leftGroup = createElement("div", "display:flex;align-items:center;gap:10px");
+        var grpKey = createElement("div");
+        grpKey.appendChild(createElement("label", sLabel)).textContent = "Your Gemini API Key (from Google AI Studio)";
+        var inpKey = createElement("input", sInput);
+        inpKey.type = "password";
+        inpKey.placeholder = "AIzaSy...";
+        inpKey.value = GEMINI_API_KEY;
+        grpKey.appendChild(inpKey);
+        pBody.appendChild(grpKey);
 
-                var checkbox = createElement("input");
-                checkbox.type = "checkbox";
-                checkbox.style.cursor = "pointer";
-                addListener(checkbox, "click", function(e){
-                    e.stopPropagation();
-                    state[key].checked = e.target.checked;
-                });
+        var grpModel = createElement("div");
+        grpModel.appendChild(createElement("label", sLabel)).textContent = "Gemini Model";
+        var inpModel = createElement("input", sInput);
+        inpModel.value = GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+        grpModel.appendChild(inpModel);
+        pBody.appendChild(grpModel);
 
-                var label = createElement("span");
-                var cleanText = (item.shortName || item.short_name || item.text || item.question || ("Item " + (itemIdx + 1))).replace(/^\d+\.\s*/, "");
-                label.textContent = (itemIdx + 1) + ". " + cleanText;
-                leftGroup.appendChild(checkbox);
-                leftGroup.appendChild(label);
+        var pFooter = createElement("div", sFooter);
+        var pBtnSave = createElement("button", sBtnGenerate);
+        pBtnSave.textContent = "Save Settings";
+        addListener(pBtnSave, "click", function(){
+            API_BASE_URL = inpApi.value.trim();
+            QA_EMAIL = inpEmail.value.trim();
+            GEMINI_API_KEY = inpKey.value.trim();
+            GEMINI_MODEL = inpModel.value.trim() || DEFAULT_GEMINI_MODEL;
 
-                var arrow = createElement("span", "font-size:10px;color:#94a3b8");
-                arrow.textContent = "▼";
-                itemHeader.appendChild(leftGroup);
-                itemHeader.appendChild(arrow);
+            storage.set('api_url', API_BASE_URL);
+            storage.set('qa_email', QA_EMAIL);
+            storage.set('gemini_key', GEMINI_API_KEY);
+            storage.set('gemini_model', GEMINI_MODEL);
 
-                var itemBody = createElement("div", sItemBody);
-                var tagContainer = createElement("div", sTagContainer);
-
-                var rawOptions = item.options || [
-                    { id: 'yes', label: 'Yes', points: 10, color: 'green' },
-                    { id: 'no', label: 'No', points: 0, color: 'red' }
-                ];
-                var options = rawOptions.map(function(opt, idx){
-                    return {
-                        id: opt.id || String(idx),
-                        label: opt.label || opt.text || 'Option',
-                        points: opt.points !== undefined ? opt.points : 0,
-                        color: opt.color || (idx === 0 ? 'green' : 'red')
-                    };
-                });
-
-                var defaultIdx = options.findIndex(function(o){ return o.isDefault === true; });
-                if (defaultIdx === -1) defaultIdx = 0;
-
-                state[key] = {
-                    id: item.id || (secIdx + "_" + itemIdx),
-                    sel: options[defaultIdx].id,
-                    selIndex: defaultIdx,
-                    text: "",
-                    checked: false,
-                    groupName: section.title || section.name,
-                    itemId: itemIdx + 1,
-                    options: options,
-                    selectedTags: [],
-                    domTextarea: null,
-                    refreshUI: null
-                };
-
-                var updateHeaderBg = function() {
-                    var theme = getTheme({ options: options }, state[key].sel);
-                    var cols = getColors(theme);
-                    itemHeader.style.background = cols.header;
-                };
-
-                var renderTags = function() {
-                    tagContainer.innerHTML = "";
-                    var currentOptIdx = state[key].selIndex;
-                    var relevantTags = globalFeedbackTags.filter(function(t){
-                        return (t.sectionIndex === secIdx || t.section_index === secIdx) &&
-                               (t.itemIndex === itemIdx || t.item_index === itemIdx) &&
-                               (t.optionIndex === currentOptIdx || t.option_index === currentOptIdx);
-                    });
-
-                    relevantTags.forEach(function(tagData){
-                        var tagBtn = createElement("div");
-                        var labelText = tagData.buttonLabel || tagData.button_label || tagData.tag_label || "Feedback";
-                        var isActive = state[key].selectedTags.some(function(t){
-                            return (t.id && t.id === tagData.id) || (t.buttonLabel === labelText);
-                        });
-
-                        var theme = getTheme({ options: options }, state[key].sel);
-                        var cols = getColors(theme);
-
-                        if(isActive) {
-                            tagBtn.style.cssText = "padding:4px 9px;border:1px solid " + cols.border + ";border-radius:12px;font-size:11px;cursor:pointer;background:" + cols.bg + ";color:" + cols.txt + ";font-weight:600;transition:all 0.15s";
-                        } else {
-                            tagBtn.style.cssText = "padding:4px 9px;border:1px solid #cbd5e1;border-radius:12px;font-size:11px;cursor:pointer;background:#f8fafc;color:#334155;transition:all 0.15s";
-                        }
-                        tagBtn.textContent = labelText;
-
-                        addListener(tagBtn, "click", function(){
-                            if(isActive) {
-                                state[key].selectedTags = state[key].selectedTags.filter(function(t){
-                                    return (t.id && t.id !== tagData.id) && (t.buttonLabel !== labelText);
-                                });
-                            } else {
-                                state[key].selectedTags.push(tagData);
-                            }
-                            renderTags();
-                            updateHeaderBg();
-                            updateText(key);
-                        });
-                        tagContainer.appendChild(tagBtn);
-                    });
-                };
-
-                // Button options group
-                var btnGroup = createElement("div", sBtnGroup);
-                var optionButtons = [];
-
-                options.forEach(function(opt, optIdx){
-                    var btn = createElement("button");
-                    btn.textContent = opt.label;
-                    btn.style.cssText = sBtnBase;
-
-                    addListener(btn, "click", function(){
-                        state[key].sel = opt.id;
-                        state[key].selIndex = optIdx;
-                        state[key].selectedTags = [];
-                        updateBtnStyles();
-                        renderTags();
-                        updateHeaderBg();
-                        updateText(key);
-                    });
-
-                    btnGroup.appendChild(btn);
-                    optionButtons.push({ dom: btn, id: opt.id, idx: optIdx });
-                });
-
-                var updateBtnStyles = function() {
-                    var val = state[key].sel;
-                    var theme = getTheme({ options: options }, val);
-                    var cols = getColors(theme);
-                    var activeStyle = sBtnBase + ";background:" + cols.bg + ";color:" + cols.txt + ";border-color:" + cols.border;
-                    var inactiveStyle = sBtnBase + ";background:white;color:#475569;border-color:#cbd5e1";
-
-                    optionButtons.forEach(function(b){
-                        b.dom.style.cssText = (b.id === val) ? activeStyle : inactiveStyle;
-                    });
-                };
-
-                state[key].refreshUI = function() {
-                    updateBtnStyles();
-                    checkbox.checked = state[key].checked;
-                    renderTags();
-                    updateHeaderBg();
-                };
-
-                updateBtnStyles();
-                itemBody.appendChild(btnGroup);
-                itemBody.appendChild(tagContainer);
-
-                var textarea = createElement("textarea", sTextarea);
-                state[key].domTextarea = textarea;
-                textarea.placeholder = "Comments...";
-                addListener(textarea, "input", function(e){
-                    state[key].text = e.target.value;
-                    updateHeaderBg();
-                });
-                itemBody.appendChild(textarea);
-
-                addListener(itemHeader, "click", function(){
-                    var isExpanded = itemBody.style.display === "block";
-                    itemBody.style.display = isExpanded ? "none" : "block";
-                    arrow.textContent = isExpanded ? "▼" : "▲";
-                    updateHeaderBg();
-                    if(!isExpanded) renderTags();
-                });
-
-                itemContainer.appendChild(itemHeader);
-                itemContainer.appendChild(itemBody);
-                contentContainer.appendChild(itemContainer);
-
-                updateHeaderBg();
-                updateText(key);
-            });
+            showToast("Settings saved!", false);
+            pOverlay.remove();
+            if (API_BASE_URL) checkAndSyncData(true);
         });
+        pFooter.appendChild(pBtnSave);
 
-        // After render, check if interaction already exists
-        if(fInteractionId.input.value) checkExistingRecord();
+        pModal.appendChild(pHeader);
+        pModal.appendChild(pBody);
+        pModal.appendChild(pFooter);
+        pOverlay.appendChild(pModal);
+        document.body.appendChild(pOverlay);
     };
 
-    // --- Sync & Initialization Logic ---
-    var checkAndSyncData = function(forceRefresh) {
-        showLoading("Syncing with Google Sheets...");
+    toolsMenu.appendChild(createMenuItem("⚙️ Configure API & Gemini Key", showSettingsModal, toolsMenu));
+    toolsMenu.appendChild(createMenuItem("🔄 Force Refresh Database", function(){ checkAndSyncData(true); }, toolsMenu));
 
-        // 1. Try to load from IndexedDB cache first for instant display
+    // --- Sync & Initialization Logic (Two-Month Window + Timestamp Check) ---
+    var checkAndSyncData = function(forceRefresh) {
+        showLoading("Loading Toast QA Data...");
+
+        // 1. Load from IndexedDB immediately (instant rendering!)
         idb.get('cached_payload').then(function(cached){
             if (cached && !forceRefresh) {
-                globalStructure = cached.rubrics[0] || {};
-                renderRubric(globalStructure, cached.feedbackChips, cached.feedbackGeneral);
+                allRubrics = (cached.rubrics && cached.rubrics.length > 0) ? cached.rubrics : [DEFAULT_FALLBACK_RUBRIC];
+                globalAssignments = cached.assignments || [];
+                globalFeedbackTags = cached.feedbackChips || [];
+                globalFeedbackGeneral = cached.feedbackGeneral || [];
+                globalUsers = cached.users || [];
+
+                currentRubric = allRubrics[0] || DEFAULT_FALLBACK_RUBRIC;
+                renderRubric(currentRubric, globalFeedbackTags, globalFeedbackGeneral);
+                updateAgentDropdown();
                 hideLoading();
             }
 
-            // 2. If API URL not set, prompt user
             if (!API_BASE_URL) {
                 hideLoading();
-                showToast("Welcome! Please enter your Google Apps Script API URL in ⚙️ Settings", false);
-                showSettingsModal();
+                if (!cached) {
+                    renderRubric(DEFAULT_FALLBACK_RUBRIC, [], []);
+                    updateAgentDropdown();
+                }
+                showToast("Please enter your Apps Script API URL in ⚙️ Settings", false);
                 return;
             }
 
-            // 3. Check timestamps on server
+            // 2. Lightweight timestamp check (0 sheet reads)
             var syncUrl = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
                           'api=1&action=check_sync&token=' + encodeURIComponent(API_TOKEN);
 
@@ -1327,16 +1249,16 @@
                     if(!syncData.success) throw new Error(syncData.error || "Sync check failed");
 
                     var lastTs = storage.get('last_sync_ts', '');
-                    var currentTs = syncData.rubricsTimestamp + "_" + syncData.feedbackTimestamp;
+                    var currentTs = syncData.rubricsTimestamp + "_" + syncData.feedbackTimestamp + "_" + syncData.assignmentsTimestamp;
 
-                    // If timestamps match and we have cache, no need to fetch full payload!
+                    // If timestamps match and we have cache, STOP HERE! Zero sheet reads!
                     if (!forceRefresh && cached && lastTs === currentTs) {
-                        console.log("Toast QA Tool: Cache is up to date (0 sheet reads!).");
+                        console.log("Toast QA Tool: Cache is up-to-date (0 sheet reads!).");
                         return;
                     }
 
-                    // Otherwise, fetch fresh payload
-                    showLoading("Updating rubrics & templates...");
+                    // 3. Fetch fresh two-month window payload
+                    showLoading("Syncing with Google Sheets...");
                     var initUrl = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
                                   'api=1&action=get_init_data&token=' + encodeURIComponent(API_TOKEN) +
                                   '&qa_email=' + encodeURIComponent(QA_EMAIL);
@@ -1346,12 +1268,18 @@
                         .then(function(data){
                             if(!data.success) throw new Error(data.error || "Failed to fetch data");
 
-                            // Cache in IndexedDB
                             idb.set('cached_payload', data);
                             storage.set('last_sync_ts', currentTs);
 
-                            globalStructure = data.rubrics[0] || {};
-                            renderRubric(globalStructure, data.feedbackChips, data.feedbackGeneral);
+                            allRubrics = (data.rubrics && data.rubrics.length > 0) ? data.rubrics : [DEFAULT_FALLBACK_RUBRIC];
+                            globalAssignments = data.assignments || [];
+                            globalFeedbackTags = data.feedbackChips || [];
+                            globalFeedbackGeneral = data.feedbackGeneral || [];
+                            globalUsers = data.users || [];
+
+                            currentRubric = allRubrics[0] || DEFAULT_FALLBACK_RUBRIC;
+                            renderRubric(currentRubric, globalFeedbackTags, globalFeedbackGeneral);
+                            updateAgentDropdown();
                             showToast("Updated with latest Google Sheets data!", false);
                         })
                         .catch(function(err){
@@ -1364,9 +1292,8 @@
                     console.error(err);
                     hideLoading();
                     if (!cached) {
-                        console.log("Toast QA Tool: Using default offline rubric.");
-                        globalStructure = DEFAULT_FALLBACK_RUBRIC;
-                        renderRubric(globalStructure, [], []);
+                        renderRubric(DEFAULT_FALLBACK_RUBRIC, [], []);
+                        updateAgentDropdown();
                         showToast("Loaded Toast QA Rubric (offline mode)", false);
                     }
                 });
