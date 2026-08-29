@@ -1402,6 +1402,10 @@
                 inpInteractionId.value = getInteractionId() || "";
                 inpDuration.value = getCallDuration() || "";
                 inpDateInteraction.value = getInteractionDateFromPage() || "";
+
+                var aniOpts = getAniDnisOptions();
+                var defaultAni = (aniOpts.length > 1) ? aniOpts[1] : (aniOpts[0] || "");
+                if (selAni && defaultAni) selAni.value = defaultAni;
             }
         } else {
             selectedAssignmentId = "";
@@ -1417,6 +1421,10 @@
             inpInteractionId.value = getInteractionId() || "";
             inpDuration.value = getCallDuration() || "";
             inpDateInteraction.value = getInteractionDateFromPage() || "";
+
+            var aniOpts = getAniDnisOptions();
+            var defaultAni = (aniOpts.length > 1) ? aniOpts[1] : (aniOpts[0] || "");
+            if (selAni && defaultAni) selAni.value = defaultAni;
         }
     };
 
@@ -1664,16 +1672,24 @@
             selectedAssignmentId = selAgent.options[foundAgentIdx].dataset.asgId || (asg && asg.id) || "";
         } else {
             var dispName = (snap && (snap.displayName || formatToDisplayName(snap.fullName))) || formatToDisplayName(record.agentName) || record.agentName || record.agentEmail || "Assigned Agent";
-            var newOpt = createElement("option");
-            newOpt.value = "db:" + (targetEmail || record.agentName || "agent");
-            newOpt.textContent = dispName;
-            newOpt.dataset.agentName = dispName;
-            newOpt.dataset.agentEmail = targetEmail;
-            newOpt.dataset.rubricId = record.rubricId || "";
-            newOpt.dataset.evalType = record.evaluationType || "Standard";
-            newOpt.selected = true;
-            selAgent.appendChild(newOpt);
-            selAgent.selectedIndex = selAgent.options.length - 1;
+            var existingAgentOpt = Array.from(selAgent.options).find(function(o){
+                var oName = String(o.dataset.agentName || o.textContent || '').trim().toLowerCase();
+                var oEmail = String(o.dataset.agentEmail || '').trim().toLowerCase();
+                return (targetEmail && oEmail === targetEmail) || (dispName && oName === dispName.toLowerCase());
+            });
+            if (!existingAgentOpt) {
+                var newOpt = createElement("option");
+                newOpt.value = "db:" + (targetEmail || record.agentName || "agent");
+                newOpt.textContent = dispName;
+                newOpt.dataset.agentName = dispName;
+                newOpt.dataset.agentEmail = targetEmail;
+                newOpt.dataset.rubricId = record.rubricId || "";
+                newOpt.dataset.evalType = record.evaluationType || "Standard";
+                selAgent.appendChild(newOpt);
+                existingAgentOpt = newOpt;
+            }
+            existingAgentOpt.selected = true;
+            selAgent.value = existingAgentOpt.value;
         }
 
         // 3. Auto-populate all header fields
@@ -1681,16 +1697,26 @@
         if(record.caseNo) inpCaseNo.value = record.caseNo;
         if(record.callDuration !== undefined && record.callDuration !== null && record.callDuration !== '') inpDuration.value = record.callDuration;
         if(record.callAniDnis && selAni) {
+            var rawAni = String(record.callAniDnis).trim();
             if (selAni.tagName === 'SELECT') {
-                var hasAniOpt = Array.from(selAni.options).some(function(o){ return o.value === record.callAniDnis; });
+                var hasAniOpt = Array.from(selAni.options).some(function(o){
+                    return o.value.trim().toLowerCase() === rawAni.toLowerCase();
+                });
                 if (!hasAniOpt) {
                     var aniOpt = createElement("option");
-                    aniOpt.value = record.callAniDnis;
-                    aniOpt.textContent = record.callAniDnis;
+                    aniOpt.value = rawAni;
+                    aniOpt.textContent = rawAni;
                     selAni.appendChild(aniOpt);
                 }
+                var matchedAniOpt = Array.from(selAni.options).find(function(o){
+                    return o.value.trim().toLowerCase() === rawAni.toLowerCase();
+                });
+                if (matchedAniOpt) {
+                    selAni.value = matchedAniOpt.value;
+                }
+            } else {
+                selAni.value = rawAni;
             }
-            selAni.value = record.callAniDnis;
         }
         if(record.dateOfInteraction) {
             inpDateInteraction.value = normalizeDateStr(record.dateOfInteraction);
@@ -1699,14 +1725,22 @@
         if(record.caseSubCategory) inpSubCategory.value = record.caseSubCategory;
         if(record.issueConcern) txtIssue.value = record.issueConcern;
         if(record.evaluationType && selEvalType) {
-            var hasEtOpt = Array.from(selEvalType.options).some(function(o){ return o.value.toLowerCase() === record.evaluationType.toLowerCase(); });
+            var rawEt = String(record.evaluationType).trim();
+            var hasEtOpt = Array.from(selEvalType.options).some(function(o){
+                return o.value.trim().toLowerCase() === rawEt.toLowerCase();
+            });
             if (!hasEtOpt) {
                 var etOpt = createElement("option");
-                etOpt.value = record.evaluationType;
-                etOpt.textContent = record.evaluationType;
+                etOpt.value = rawEt;
+                etOpt.textContent = rawEt;
                 selEvalType.appendChild(etOpt);
             }
-            selEvalType.value = record.evaluationType;
+            var matchedEtOpt = Array.from(selEvalType.options).find(function(o){
+                return o.value.trim().toLowerCase() === rawEt.toLowerCase();
+            });
+            if (matchedEtOpt) {
+                selEvalType.value = matchedEtOpt.value;
+            }
         }
 
         // 4. Switch Rubric if needed
