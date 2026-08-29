@@ -718,6 +718,25 @@
     };
 
     // --- Populate Agent Dropdown based on Date of Evaluation ---
+    var normalizeDateStr = function(dStr) {
+        if (!dStr) return "";
+        var str = String(dStr).split('T')[0].trim();
+        if (str.includes('/')) {
+            var p = str.split('/');
+            if (p.length === 3) {
+                var m = p[0].padStart(2, '0');
+                var d = p[1].padStart(2, '0');
+                var y = p[2].length === 2 ? ('20' + p[2]) : p[2];
+                return y + '-' + m + '-' + d;
+            }
+        }
+        var p2 = str.split('-');
+        if (p2.length === 3) {
+            return p2[0] + '-' + p2[1].padStart(2, '0') + '-' + p2[2].padStart(2, '0');
+        }
+        return str;
+    };
+
     var formatEmailToName = function(email) {
         if (!email) return "";
         var namePart = email.split('@')[0];
@@ -746,10 +765,11 @@
             return formatEmailToName(a.agentEmail) || a.agentEmail || "Agent";
         };
 
+        var normSelectedDate = normalizeDateStr(selectedDate);
+
         // Group 1: Assigned for selected date
         var dateAssignments = globalAssignments.filter(function(a){
-            var aDate = (a.date || "").split('T')[0];
-            return aDate === selectedDate;
+            return normalizeDateStr(a.date) === normSelectedDate;
         });
 
         if (dateAssignments.length > 0) {
@@ -775,8 +795,7 @@
 
         // Group 2: Assigned on other dates in window
         var otherAssignments = globalAssignments.filter(function(a){
-            var aDate = (a.date || "").split('T')[0];
-            return aDate !== selectedDate;
+            return normalizeDateStr(a.date) !== normSelectedDate;
         });
 
         if (otherAssignments.length > 0) {
