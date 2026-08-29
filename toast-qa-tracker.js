@@ -809,7 +809,7 @@
     // --- Dynamic Rubric & Feedback Updates ---
     var updateText = function(key) {
         var s = state[key];
-        if(!s || !s.domTextarea) return;
+        if(!s) return;
 
         var txt = "";
         var cleanText = function(t) { return (t || "").replace(/\s*Source:[\s\S]*$/i, "").trim(); };
@@ -818,9 +818,11 @@
             txt = s.selectedTags.map(function(t){ return cleanText(t.feedbackText || t.feedback_text); }).join(" ");
         } else {
             var genFeedback = globalFeedbackGeneral.find(function(f){
-                return (f.sectionIndex === s.secIdx || f.section_index === s.secIdx) &&
-                       (f.itemIndex === s.itemIdx || f.item_index === s.itemIdx) &&
-                       (f.optionIndex === s.selIndex || f.option_index === s.selIndex);
+                var matchRubric = !f.rubricId || !currentRubric || !currentRubric.id || String(f.rubricId) === String(currentRubric.id);
+                var matchSec = (f.sectionIndex === s.secIdx || f.section_index === s.secIdx);
+                var matchItem = (f.itemIndex === s.itemIdx || f.item_index === s.itemIdx);
+                var matchOpt = (f.optionIndex === s.selIndex || f.option_index === s.selIndex);
+                return matchRubric && matchSec && matchItem && matchOpt;
             });
             if (genFeedback) {
                 txt = cleanText(genFeedback.feedbackText || genFeedback.feedback_text);
@@ -828,14 +830,15 @@
         }
 
         s.text = txt;
-        s.domTextarea.value = txt;
-        s.domTextarea.dispatchEvent(new Event('input'));
+        if(s.domTextarea) {
+            s.domTextarea.value = txt;
+        }
     };
 
     var refreshAllUI = function() {
         Object.keys(state).forEach(function(key){
             if(state[key].refreshUI) state[key].refreshUI();
-            if(state[key].domTextarea) state[key].domTextarea.value = state[key].text;
+            if(state[key].domTextarea) state[key].domTextarea.value = state[key].text || "";
         });
         updateLiveScore();
     };
@@ -1223,10 +1226,9 @@
             if (defaultIdx === -1) defaultIdx = 0;
             s.sel = s.options[defaultIdx].id;
             s.selIndex = defaultIdx;
-            s.text = "";
             s.checked = false;
             s.selectedTags = [];
-            if (s.domTextarea) s.domTextarea.value = "";
+            updateText(key);
         });
         refreshAllUI();
         updateLiveScore();
@@ -1385,17 +1387,22 @@
                     .catch(function(err){ console.warn("Load completed asg error:", err); })
                     .finally(function(){ hideLoading(); });
             } else {
-                // Fresh/Pending assignment: Reset rubric and scoresheet to clean state
+                // Fresh/Pending assignment: Reset rubric and scoresheet to clean state with default feedback templates
                 duplicateWarningBox.style.display = "none";
                 duplicateWarningBox.innerHTML = "";
                 existingRecordId = null;
                 resetRubricToDefaults();
 
-                // Pre-fill extracted Stella Connect data
-                if (getInteractionId()) inpInteractionId.value = getInteractionId();
-                if (getCallDuration()) inpDuration.value = getCallDuration();
-                var pDate = getInteractionDateFromPage();
-                if (pDate) inpDateInteraction.value = pDate;
+                // Explicitly clear manual evaluation fields
+                inpCaseNo.value = "";
+                inpCategory.value = "";
+                inpSubCategory.value = "";
+                txtIssue.value = "";
+
+                // Reset page fields from active Stella Connect review
+                inpInteractionId.value = getInteractionId() || "";
+                inpDuration.value = getCallDuration() || "";
+                inpDateInteraction.value = getInteractionDateFromPage() || "";
 
                 if (inpInteractionId.value) {
                     checkExistingRecord();
@@ -1407,6 +1414,14 @@
             duplicateWarningBox.innerHTML = "";
             existingRecordId = null;
             resetRubricToDefaults();
+
+            inpCaseNo.value = "";
+            inpCategory.value = "";
+            inpSubCategory.value = "";
+            txtIssue.value = "";
+            inpInteractionId.value = getInteractionId() || "";
+            inpDuration.value = getCallDuration() || "";
+            inpDateInteraction.value = getInteractionDateFromPage() || "";
         }
     };
 
