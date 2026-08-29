@@ -1,3 +1,21 @@
 # Toast QA Tracker Bookmarklet
 
-Stella Connect QA Bookmarklet tool.
+A browser bookmarklet for Stella Connect QA evaluations integrated with Google Sheets and client-side Gemini AI.
+
+## Installation
+
+Create a new bookmark in your browser bookmarks bar with the following URL:
+
+```javascript
+javascript:(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/aarontoast2025/toast-qa-tracker@main/toast-qa-tracker.js?v='+Date.now();document.body.appendChild(s);})();
+```
+
+## Setup
+1. Open any Stella Connect QA review page.
+2. Click your **Toast QA Tracker** bookmark.
+3. Click the **⚙️ (Settings)** icon in the top right of the modal.
+4. Enter:
+   - **Apps Script API URL**: Your Google Apps Script Web App Deployment URL
+   - **Your Toast QA Email**: Your `@toasttab.com` email
+   - **Gemini API Key**: Your personal Gemini API key (from Google AI Studio)
+5. Click **Save Settings**.
