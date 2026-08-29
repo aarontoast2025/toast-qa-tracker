@@ -1035,12 +1035,37 @@
 
         var pageAdvocateName = getAdvocateNameFromPage().toLowerCase();
 
+        var formatToDisplayName = function(name) {
+            if (!name) return "";
+            var str = String(name).trim();
+            if (str.includes(',')) {
+                var parts = str.split(',');
+                var lastPart = parts[0].trim();
+                var firstPart = parts[1].trim();
+                var firstName = firstPart.split(' ')[0];
+                var lastName = lastPart;
+                var lastSpaceIdx = lastPart.lastIndexOf(' ');
+                if (lastSpaceIdx !== -1) {
+                    lastName = lastPart.substring(0, lastSpaceIdx);
+                }
+                return (firstName + ' ' + lastName).trim();
+            }
+            return str;
+        };
+
         var resolveName = function(a) {
-            if (a.agentName && a.agentName !== a.agentEmail) return a.agentName;
+            if (a.agentSnapshot) {
+                var snap = typeof a.agentSnapshot === 'string' ? JSON.parse(a.agentSnapshot) : a.agentSnapshot;
+                if (snap && snap.displayName) return snap.displayName;
+                if (snap && snap.fullName) return formatToDisplayName(snap.fullName);
+            }
+            if (a.agentName && a.agentName !== a.agentEmail) {
+                return formatToDisplayName(a.agentName);
+            }
             var matchedUser = globalUsers.find(function(u){
                 return (u.email || '').toLowerCase() === (a.agentEmail || '').toLowerCase();
             });
-            if (matchedUser && matchedUser.name) return matchedUser.name;
+            if (matchedUser && matchedUser.name) return formatToDisplayName(matchedUser.name);
             return formatEmailToName(a.agentEmail) || a.agentEmail || "Agent";
         };
 
