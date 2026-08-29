@@ -695,21 +695,34 @@
     var wrapEvalType = createIconFieldWrapper("📋", selEvalType);
 
     // 4. Call ANI / DNIS
-    var aniOpts = getAniDnisOptions();
-    var defaultAni = (aniOpts.length > 1) ? aniOpts[1] : (aniOpts[0] || "");
+    var initAniOpts = getAniDnisOptions();
     var selAni;
-    if (aniOpts.length > 0) {
+    if (initAniOpts.length > 0) {
         selAni = createElement("select", sSelect);
-        aniOpts.forEach(function(o){
-            var opt = createElement("option");
-            opt.value = o; opt.textContent = o;
-            if (o === defaultAni) opt.selected = true;
-            selAni.appendChild(opt);
-        });
     } else {
         selAni = createElement("input", sInput);
         selAni.placeholder = "Call ANI / DNIS";
     }
+
+    var resetAniDropdown = function() {
+        if (!selAni) return;
+        var aniOpts = getAniDnisOptions();
+        var defaultAni = (aniOpts.length > 1) ? aniOpts[1] : (aniOpts[0] || "");
+        if (selAni.tagName === 'SELECT') {
+            selAni.innerHTML = "";
+            aniOpts.forEach(function(o){
+                var opt = createElement("option");
+                opt.value = o;
+                opt.textContent = o;
+                if (o === defaultAni) opt.selected = true;
+                selAni.appendChild(opt);
+            });
+            if (defaultAni) selAni.value = defaultAni;
+        } else if (selAni.tagName === 'INPUT') {
+            selAni.value = defaultAni;
+        }
+    };
+    resetAniDropdown();
     var wrapAni = createIconFieldWrapper("📞", selAni);
 
     // Row 2: Evaluation Type and Call ANI/DNIS
@@ -1402,10 +1415,7 @@
                 inpInteractionId.value = getInteractionId() || "";
                 inpDuration.value = getCallDuration() || "";
                 inpDateInteraction.value = getInteractionDateFromPage() || "";
-
-                var aniOpts = getAniDnisOptions();
-                var defaultAni = (aniOpts.length > 1) ? aniOpts[1] : (aniOpts[0] || "");
-                if (selAni && defaultAni) selAni.value = defaultAni;
+                resetAniDropdown();
             }
         } else {
             selectedAssignmentId = "";
@@ -1421,10 +1431,7 @@
             inpInteractionId.value = getInteractionId() || "";
             inpDuration.value = getCallDuration() || "";
             inpDateInteraction.value = getInteractionDateFromPage() || "";
-
-            var aniOpts = getAniDnisOptions();
-            var defaultAni = (aniOpts.length > 1) ? aniOpts[1] : (aniOpts[0] || "");
-            if (selAni && defaultAni) selAni.value = defaultAni;
+            resetAniDropdown();
         }
     };
 
@@ -1697,6 +1704,7 @@
         if(record.caseNo) inpCaseNo.value = record.caseNo;
         if(record.callDuration !== undefined && record.callDuration !== null && record.callDuration !== '') inpDuration.value = record.callDuration;
         if(record.callAniDnis && selAni) {
+            resetAniDropdown();
             var rawAni = String(record.callAniDnis).trim();
             if (selAni.tagName === 'SELECT') {
                 var hasAniOpt = Array.from(selAni.options).some(function(o){
