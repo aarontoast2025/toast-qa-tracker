@@ -54,9 +54,9 @@
     var sItemBody = "display:none;padding:12px 14px;border-top:1px solid #e2e8f0;background:#ffffff";
     var sBtnGroup = "margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap";
     var sBtnBase = "flex:1;min-width:60px;padding:7px 10px;border:1px solid;border-radius:5px;cursor:pointer;font-weight:500;font-size:12px;transition:all 0.15s;text-align:center";
-    var sSelect = "width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:5px;margin-bottom:8px;font-size:13px;background:white;cursor:pointer";
-    var sTextarea = "width:100%;border:1px solid #cbd5e1;border-radius:5px;padding:8px;font-family:inherit;resize:vertical;height:55px;font-size:13px;box-sizing:border-box";
-    var sInput = "width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:5px;font-size:13px;box-sizing:border-box";
+    var sSelect = "width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:5px;font-size:13px;background:white;cursor:pointer;box-sizing:border-box;margin:0;";
+    var sTextarea = "width:100%;border:1px solid #cbd5e1;border-radius:5px;padding:8px;font-family:inherit;resize:vertical;height:55px;font-size:13px;box-sizing:border-box;margin:0;";
+    var sInput = "width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:5px;font-size:13px;box-sizing:border-box;margin:0;";
     var sLabel = "display:block;margin-bottom:4px;font-weight:600;font-size:12px;color:#334155";
     var sFooter = "padding:14px 20px;border-top:1px solid #e2e8f0;background:#ffffff;display:flex;gap:10px;justify-content:flex-end;align-items:center";
     var sBtnCancel = "padding:8px 16px;border:1px solid #cbd5e1;background:white;border-radius:5px;cursor:pointer;font-size:13px;color:#475569;font-weight:500";
@@ -193,6 +193,52 @@
         });
     };
 
+    // --- General Utility Helpers ---
+    var normalizeDateStr = function(dStr) {
+        if (!dStr) return "";
+        var str = String(dStr).split('T')[0].trim();
+        if (str.includes('/')) {
+            var p = str.split('/');
+            if (p.length === 3) {
+                var m = p[0].padStart(2, '0');
+                var d = p[1].padStart(2, '0');
+                var y = p[2].length === 2 ? ('20' + p[2]) : p[2];
+                return y + '-' + m + '-' + d;
+            }
+        }
+        var p2 = str.split('-');
+        if (p2.length === 3) {
+            return p2[0] + '-' + p2[1].padStart(2, '0') + '-' + p2[2].padStart(2, '0');
+        }
+        return str;
+    };
+
+    var formatEmailToName = function(email) {
+        if (!email) return "";
+        var namePart = String(email).split('@')[0];
+        return namePart.split('.').map(function(part){
+            return part.charAt(0).toUpperCase() + part.slice(1);
+        }).join(' ');
+    };
+
+    var formatToDisplayName = function(fullName) {
+        if (!fullName) return "";
+        var str = String(fullName).trim();
+        if (str.includes(',')) {
+            var parts = str.split(',');
+            var lastPart = parts[0].trim();
+            var firstPart = parts[1].trim();
+            var firstName = firstPart.split(' ')[0];
+            var lastName = lastPart;
+            var lastSpaceIdx = lastPart.lastIndexOf(' ');
+            if (lastSpaceIdx !== -1) {
+                lastName = lastPart.substring(0, lastSpaceIdx);
+            }
+            return (firstName + ' ' + lastName).trim();
+        }
+        return str;
+    };
+
     // --- Stella Connect DOM Extractors ---
     var extractText = function(selector) {
         var el = document.querySelector(selector);
@@ -212,6 +258,19 @@
         var h4s = Array.from(document.querySelectorAll('h4'));
         var h4 = h4s.find(function(el){ return el.textContent.trim() === 'Interaction ID'; });
         return h4 && h4.nextElementSibling ? h4.nextElementSibling.textContent.trim() : "";
+    };
+
+    var getInteractionDateFromPage = function() {
+        var h4s = Array.from(document.querySelectorAll('h4'));
+        var h4 = h4s.find(function(el){
+            var txt = el.textContent.trim().toLowerCase();
+            return txt.includes('interaction date') || txt.includes('date of interaction') || txt.includes('call date');
+        });
+        if (h4 && h4.nextElementSibling) {
+            var val = h4.nextElementSibling.textContent.trim();
+            return normalizeDateStr(val);
+        }
+        return "";
     };
 
     var getAdvocateNameFromPage = function() {
@@ -566,28 +625,22 @@
     var headerFieldsContainer = createElement("div");
     headerFieldsContainer.style.cssText = "display:flex;flex-direction:column;gap:8px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #e2e8f0";
 
-    // Helper to wrap input/select/textarea with an in-field icon and generous breathing room (paddingLeft: 38px)
-    var createIconFieldWrapper = function(icon, element, fullWidth, isTextarea) {
+    // Helper to wrap input/select with an in-field icon (uniform 36px height, margin 0, left padding 36px)
+    var createIconFieldWrapper = function(icon, element, fullWidth) {
         var wrap = createElement("div");
-        wrap.style.cssText = "position:relative;display:flex;align-items:center;width:100%;" + (fullWidth ? "grid-column:1 / -1;" : "");
+        wrap.style.cssText = "position:relative;display:flex;align-items:center;width:100%;margin:0;" + (fullWidth ? "grid-column:1 / -1;" : "");
 
         var iconEl = createElement("span");
         iconEl.textContent = icon;
-        iconEl.style.cssText = "position:absolute;left:11px;pointer-events:none;font-size:13px;z-index:2;user-select:none;display:inline-flex;align-items:center;justify-content:center;" +
-                              (isTextarea ? "top:9px;" : "");
+        iconEl.style.cssText = "position:absolute;left:11px;pointer-events:none;font-size:13px;z-index:2;user-select:none;display:inline-flex;align-items:center;justify-content:center;";
 
-        // 38px left padding leaves one clean space between the icon and text
-        element.style.paddingLeft = "38px";
+        element.style.paddingLeft = "36px";
         element.style.boxSizing = "border-box";
         element.style.width = "100%";
-        if (!isTextarea) {
-            element.style.height = "34px";
-            element.style.paddingTop = "0";
-            element.style.paddingBottom = "0";
-        } else {
-            element.style.minHeight = "46px";
-            element.style.paddingTop = "8px";
-        }
+        element.style.height = "36px";
+        element.style.paddingTop = "0";
+        element.style.paddingBottom = "0";
+        element.style.margin = "0";
 
         wrap.appendChild(iconEl);
         wrap.appendChild(element);
@@ -606,7 +659,7 @@
     var wrapInteractionId = createIconFieldWrapper("🆔", inpInteractionId);
 
     // Row 1: Agent's Name and Interaction ID
-    var rowAgentInteraction = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;");
+    var rowAgentInteraction = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;width:100%;");
     rowAgentInteraction.appendChild(wrapAgent);
     rowAgentInteraction.appendChild(wrapInteractionId);
     headerFieldsContainer.appendChild(rowAgentInteraction);
@@ -660,13 +713,13 @@
     var wrapAni = createIconFieldWrapper("📞", selAni);
 
     // Row 2: Evaluation Type and Call ANI/DNIS
-    var rowEvalTypeAni = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;");
+    var rowEvalTypeAni = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;width:100%;");
     rowEvalTypeAni.appendChild(wrapEvalType);
     rowEvalTypeAni.appendChild(wrapAni);
     headerFieldsContainer.appendChild(rowEvalTypeAni);
 
     // Row 3: Case # & Call Duration Row
-    var caseDurationRow = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;");
+    var caseDurationRow = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;width:100%;");
     var inpCaseNo = createElement("input", sInput);
     inpCaseNo.placeholder = "Case #...";
     var inpDuration = createElement("input", sInput);
@@ -677,10 +730,13 @@
     headerFieldsContainer.appendChild(caseDurationRow);
 
     // Row 4: Date of Interaction & Date of Evaluation
-    var dateRow = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;");
+    var dateRow = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;width:100%;");
     var inpDateInteraction = createElement("input", sInput);
     inpDateInteraction.type = "date";
     inpDateInteraction.title = "Date of Interaction";
+    var pageIntDate = getInteractionDateFromPage();
+    if (pageIntDate) inpDateInteraction.value = pageIntDate;
+
     var inpDateEvaluation = createElement("input", sInput);
     inpDateEvaluation.type = "date";
     inpDateEvaluation.title = "Date of Evaluation";
@@ -697,7 +753,7 @@
     headerFieldsContainer.appendChild(dateRow);
 
     // Row 5: Category & Sub-Category Row
-    var categoryRow = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;");
+    var categoryRow = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;width:100%;");
     var inpCategory = createElement("input", sInput);
     inpCategory.placeholder = "Category (e.g. Payroll, POS)...";
     var inpSubCategory = createElement("input", sInput);
@@ -706,17 +762,25 @@
     categoryRow.appendChild(createIconFieldWrapper("📂", inpSubCategory));
     headerFieldsContainer.appendChild(categoryRow);
 
-    // Row 6: Issue / Concern with ✨ Gemini Summary button
+    // Row 6: Issue / Concern with ✨ Gemini Summary button and inside 📝 icon
+    var wrapIssue = createElement("div", "position:relative;width:100%;grid-column:1 / -1;margin:0;");
+    var icoIssue = createElement("span");
+    icoIssue.textContent = "📝";
+    icoIssue.style.cssText = "position:absolute;left:11px;top:9px;pointer-events:none;font-size:13px;z-index:2;user-select:none;";
+
     var txtIssue = createElement("textarea", sTextarea);
     txtIssue.placeholder = "Issue / Concern description...";
-    var issueBox = createElement("div", "position:relative;width:100%");
+    txtIssue.style.cssText = "width:100%;border:1px solid #cbd5e1;border-radius:5px;padding:8px 34px 8px 36px;font-family:inherit;resize:vertical;height:55px;font-size:13px;box-sizing:border-box;margin:0;";
+
     var btnSummary = createElement("span");
     btnSummary.textContent = "✨";
     btnSummary.title = "Generate Summary from Transcript using Gemini AI";
-    btnSummary.style.cssText = "position:absolute;right:8px;top:8px;cursor:pointer;font-size:16px;opacity:0.7;user-select:none;z-index:5";
-    issueBox.appendChild(txtIssue);
-    issueBox.appendChild(btnSummary);
-    headerFieldsContainer.appendChild(createIconFieldWrapper("📝", issueBox, true, true));
+    btnSummary.style.cssText = "position:absolute;right:10px;top:9px;cursor:pointer;font-size:15px;opacity:0.7;user-select:none;z-index:5;";
+
+    wrapIssue.appendChild(icoIssue);
+    wrapIssue.appendChild(txtIssue);
+    wrapIssue.appendChild(btnSummary);
+    headerFieldsContainer.appendChild(wrapIssue);
 
     addListener(btnSummary, "mouseenter", function(){ btnSummary.style.opacity = "1"; });
     addListener(btnSummary, "mouseleave", function(){ btnSummary.style.opacity = "0.7"; });
@@ -1147,33 +1211,6 @@
     };
 
     // --- Populate Agent Dropdown based on Date of Evaluation ---
-    var normalizeDateStr = function(dStr) {
-        if (!dStr) return "";
-        var str = String(dStr).split('T')[0].trim();
-        if (str.includes('/')) {
-            var p = str.split('/');
-            if (p.length === 3) {
-                var m = p[0].padStart(2, '0');
-                var d = p[1].padStart(2, '0');
-                var y = p[2].length === 2 ? ('20' + p[2]) : p[2];
-                return y + '-' + m + '-' + d;
-            }
-        }
-        var p2 = str.split('-');
-        if (p2.length === 3) {
-            return p2[0] + '-' + p2[1].padStart(2, '0') + '-' + p2[2].padStart(2, '0');
-        }
-        return str;
-    };
-
-    var formatEmailToName = function(email) {
-        if (!email) return "";
-        var namePart = email.split('@')[0];
-        return namePart.split('.').map(function(part){
-            return part.charAt(0).toUpperCase() + part.slice(1);
-        }).join(' ');
-    };
-
     var updateAgentDropdown = function() {
         var selectedDate = inpDateEvaluation.value; // YYYY-MM-DD
         selAgent.innerHTML = "";
@@ -1184,24 +1221,6 @@
         selAgent.appendChild(defaultOpt);
 
         var pageAdvocateName = getAdvocateNameFromPage().toLowerCase();
-
-        var formatToDisplayName = function(name) {
-            if (!name) return "";
-            var str = String(name).trim();
-            if (str.includes(',')) {
-                var parts = str.split(',');
-                var lastPart = parts[0].trim();
-                var firstPart = parts[1].trim();
-                var firstName = firstPart.split(' ')[0];
-                var lastName = lastPart;
-                var lastSpaceIdx = lastPart.lastIndexOf(' ');
-                if (lastSpaceIdx !== -1) {
-                    lastName = lastPart.substring(0, lastSpaceIdx);
-                }
-                return (firstName + ' ' + lastName).trim();
-            }
-            return str;
-        };
 
         var resolveName = function(a) {
             if (a.agentSnapshot) {
@@ -1234,6 +1253,7 @@
                 opt.textContent = agentLabel + (a.status === 'Completed' ? ' [✓ Done]' : '');
                 opt.dataset.rubricId = a.rubricId || "";
                 opt.dataset.agentName = agentLabel;
+                opt.dataset.agentEmail = a.agentEmail || "";
                 opt.dataset.asgId = a.id;
                 opt.dataset.evalType = a.evaluationType || "Standard";
 
@@ -1456,32 +1476,48 @@
                     var record = result.data;
                     existingRecordId = record.id;
 
-                    var evalDate = record.dateOfEvaluation || record.evaluationDate || record.submittedAt || record.date || "previous date";
-                    if (evalDate.includes('T')) evalDate = evalDate.split('T')[0];
+                    var evalDate = normalizeDateStr(record.dateOfEvaluation || record.evaluationDate || record.submittedAt || record.date || "");
                     var qaName = record.qaName || record.qaEmail || "another QA";
-                    var score = (record.score !== undefined && record.score !== null) ? (" • Score: " + record.score + "%") : "";
+                    var score = (record.score !== undefined && record.score !== null && record.score !== "") ? (" • Score: " + record.score + "%") : "";
 
                     // Display Duplicate Warning Banner
                     duplicateWarningBox.style.display = "block";
-                    duplicateWarningBox.innerHTML = "⚠️ <strong>Existing Completed Evaluation</strong><br>Evaluated on " + evalDate + " by " + qaName + score + ". All details loaded below.";
+                    duplicateWarningBox.innerHTML = "⚠️ <strong>Existing Completed Evaluation</strong><br>Evaluated on " + (evalDate || "previous date") + " by " + qaName + score + ". All details loaded below.";
                     showToast("ℹ️ Loaded existing evaluation data from database", false);
 
                     // 1. Auto-populate Date of Evaluation to match completed entry
-                    if (evalDate && evalDate !== "previous date") {
+                    if (evalDate) {
                         inpDateEvaluation.value = evalDate;
                         updateAgentDropdown(); // update dropdown choices for that evaluation date
                     }
 
                     // 2. Automatically select the Agent's Name in dropdown
-                    var targetEmail = String(record.agentEmail || '').trim().toLowerCase();
-                    var targetName = formatToDisplayName(record.agentName || '').trim().toLowerCase();
-                    var foundAgentIdx = -1;
+                    var snap = null;
+                    if (record.agentSnapshot) {
+                        try {
+                            snap = typeof record.agentSnapshot === 'string' ? JSON.parse(record.agentSnapshot) : record.agentSnapshot;
+                        } catch(e) { snap = null; }
+                    }
 
+                    var targetEmail = String(record.agentEmail || (snap && (snap.toasttabEmail || snap.internalIbexEmail)) || '').trim().toLowerCase();
+                    var targetName = formatToDisplayName((snap && (snap.displayName || snap.fullName)) || record.agentName || '').trim().toLowerCase();
+                    var rawRecordName = String(record.agentName || '').trim().toLowerCase();
+
+                    var foundAgentIdx = -1;
                     for (var oi = 0; oi < selAgent.options.length; oi++) {
                         var opt = selAgent.options[oi];
                         var optEmail = String(opt.dataset.agentEmail || '').trim().toLowerCase();
                         var optName = String(opt.dataset.agentName || opt.textContent || '').trim().toLowerCase();
-                        if ((targetEmail && optEmail === targetEmail) || (targetName && optName === targetName)) {
+
+                        if (targetEmail && optEmail === targetEmail) {
+                            foundAgentIdx = oi;
+                            break;
+                        }
+                        if (targetName && (optName === targetName || optName.includes(targetName) || targetName.includes(optName))) {
+                            foundAgentIdx = oi;
+                            break;
+                        }
+                        if (rawRecordName && (optName === rawRecordName || optName.includes(rawRecordName) || rawRecordName.includes(optName))) {
                             foundAgentIdx = oi;
                             break;
                         }
@@ -1492,35 +1528,55 @@
                         selectedAssignmentId = selAgent.options[foundAgentIdx].dataset.asgId || "";
                     } else {
                         // Dynamically append the evaluated agent if not in current assignment roster
-                        var dispName = formatToDisplayName(record.agentName) || record.agentEmail || "Assigned Agent";
+                        var dispName = (snap && (snap.displayName || formatToDisplayName(snap.fullName))) || formatToDisplayName(record.agentName) || record.agentName || record.agentEmail || "Assigned Agent";
                         var newOpt = createElement("option");
-                        newOpt.value = "db:" + (record.agentEmail || record.agentName);
+                        newOpt.value = "db:" + (targetEmail || record.agentName || "agent");
                         newOpt.textContent = dispName;
                         newOpt.dataset.agentName = dispName;
-                        newOpt.dataset.agentEmail = record.agentEmail || "";
+                        newOpt.dataset.agentEmail = targetEmail;
                         newOpt.dataset.rubricId = record.rubricId || "";
                         newOpt.dataset.evalType = record.evaluationType || "Standard";
                         newOpt.selected = true;
                         selAgent.appendChild(newOpt);
+                        selAgent.selectedIndex = selAgent.options.length - 1;
                     }
 
                     // 3. Auto-populate all header fields
                     if(record.caseNo) inpCaseNo.value = record.caseNo;
-                    if(record.callDuration) inpDuration.value = record.callDuration;
-                    if(record.callAniDnis && selAni) selAni.value = record.callAniDnis;
+                    if(record.callDuration !== undefined && record.callDuration !== null && record.callDuration !== '') inpDuration.value = record.callDuration;
+                    if(record.callAniDnis && selAni) {
+                        if (selAni.tagName === 'SELECT') {
+                            var hasAniOpt = Array.from(selAni.options).some(function(o){ return o.value === record.callAniDnis; });
+                            if (!hasAniOpt) {
+                                var aniOpt = createElement("option");
+                                aniOpt.value = record.callAniDnis;
+                                aniOpt.textContent = record.callAniDnis;
+                                selAni.appendChild(aniOpt);
+                            }
+                        }
+                        selAni.value = record.callAniDnis;
+                    }
                     if(record.dateOfInteraction) {
-                        var dInt = String(record.dateOfInteraction).trim();
-                        if (dInt.includes('T')) dInt = dInt.split('T')[0];
-                        inpDateInteraction.value = dInt;
+                        inpDateInteraction.value = normalizeDateStr(record.dateOfInteraction);
                     }
                     if(record.caseCategory) inpCategory.value = record.caseCategory;
                     if(record.caseSubCategory) inpSubCategory.value = record.caseSubCategory;
                     if(record.issueConcern) txtIssue.value = record.issueConcern;
-                    if(record.evaluationType && selEvalType) selEvalType.value = record.evaluationType;
+                    if(record.evaluationType && selEvalType) {
+                        var hasEtOpt = Array.from(selEvalType.options).some(function(o){ return o.value.toLowerCase() === record.evaluationType.toLowerCase(); });
+                        if (!hasEtOpt) {
+                            var etOpt = createElement("option");
+                            etOpt.value = record.evaluationType;
+                            etOpt.textContent = record.evaluationType;
+                            selEvalType.appendChild(etOpt);
+                        }
+                        selEvalType.value = record.evaluationType;
+                    }
 
                     // 4. Switch Rubric if needed
-                    if (record.rubricId && currentRubric && currentRubric.id !== record.rubricId) {
-                        switchRubricById(record.rubricId);
+                    var targetRubricId = record.rubricId || (currentRubric && currentRubric.id);
+                    if (targetRubricId && currentRubric && String(currentRubric.id) !== String(targetRubricId)) {
+                        switchRubricById(targetRubricId);
                     }
 
                     // 5. Restore Rubric answers, selected feedback chips, and feedback text
@@ -1528,7 +1584,7 @@
                         try {
                             var details = typeof record.evaluationDetails === 'string' ? JSON.parse(record.evaluationDetails) : record.evaluationDetails;
                             if (typeof details === 'object' && details !== null && !Array.isArray(details)) {
-                                // Section-based dictionary: { "Section Name": [ { question, selected, feedback, feedbackText, feedbackChips } ] }
+                                // Section-based dictionary: { "Section Name": [ { question, selected, points, feedback, feedbackText, feedbackChips, checked } ] }
                                 Object.keys(details).forEach(function(secName, secIdx){
                                     var sItems = details[secName];
                                     if (Array.isArray(sItems)) {
@@ -1547,11 +1603,15 @@
                                             if (key && state[key]) {
                                                 // Answer selection
                                                 var matchedOpt = state[key].options.find(function(o){
-                                                    return o.label === it.selected || (it.selected && o.label.toLowerCase() === it.selected.toLowerCase());
+                                                    return o.label === it.selected || (it.selected && o.label.toLowerCase() === String(it.selected).toLowerCase());
                                                 });
                                                 if (matchedOpt) {
                                                     state[key].sel = matchedOpt.id;
                                                     state[key].selIndex = state[key].options.indexOf(matchedOpt);
+                                                }
+                                                // Checkbox state
+                                                if (it.checked !== undefined) {
+                                                    state[key].checked = (it.checked === true || it.checked === 'true');
                                                 }
                                                 // Feedback comments text
                                                 state[key].text = it.feedbackText || it.feedback || "";
@@ -1575,8 +1635,11 @@
                                 details.forEach(function(rItem){
                                     var key = Object.keys(state).find(function(k){ return state[k].id === rItem.itemId; });
                                     if(key && state[key]) {
-                                        state[key].sel = rItem.answerId;
-                                        state[key].text = rItem.feedbackText || "";
+                                        state[key].sel = rItem.answerId || rItem.selected;
+                                        state[key].text = rItem.feedbackText || rItem.feedback || "";
+                                        if (rItem.checked !== undefined) {
+                                            state[key].checked = (rItem.checked === true || rItem.checked === 'true');
+                                        }
                                         if (Array.isArray(rItem.selectedTags)) {
                                             state[key].selectedTags = rItem.selectedTags;
                                         }
