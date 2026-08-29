@@ -1203,7 +1203,6 @@
         });
 
         updateLiveScore();
-        if(inpInteractionId.value) checkExistingRecord();
     };
 
     // --- Switch Rubric when Assignment is Selected ---
@@ -1403,10 +1402,6 @@
                 inpInteractionId.value = getInteractionId() || "";
                 inpDuration.value = getCallDuration() || "";
                 inpDateInteraction.value = getInteractionDateFromPage() || "";
-
-                if (inpInteractionId.value) {
-                    checkExistingRecord();
-                }
             }
         } else {
             selectedAssignmentId = "";
@@ -2246,10 +2241,16 @@
                             }
                             if (data.qaName) currentQaDisplayName = data.qaName;
 
-                            currentRubric = allRubrics[0] || DEFAULT_FALLBACK_RUBRIC;
-                            renderRubric(currentRubric, globalFeedbackTags, globalFeedbackGeneral);
-                            autoSelectAssignmentAndDate();
-                            updateLiveScore();
+                            // If this was an initial load without cache, render the rubric and auto-select
+                            if (!cached) {
+                                currentRubric = allRubrics[0] || DEFAULT_FALLBACK_RUBRIC;
+                                renderRubric(currentRubric, globalFeedbackTags, globalFeedbackGeneral);
+                                autoSelectAssignmentAndDate();
+                                updateLiveScore();
+                            } else {
+                                // Already rendered from cache: refresh dropdown cleanly without disrupting user
+                                updateAgentDropdown();
+                            }
                             showToast("Bulk synced with latest Google Sheets data!", false);
                         })
                         .catch(function(err){
