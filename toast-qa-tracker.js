@@ -3,7 +3,7 @@
     console.log("Toast QA Tracker: Initializing...");
 
     // Default configuration
-    var DEFAULT_API_URL = ''; // Will be populated with user's Apps Script Web App exec URL
+    var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbyI2cDSGLZokRPesN_f-LmdSp2YLXzY3aXYpyrq2_Kzh9_vYCQOsyQtw0L-7wwHQ3lFEQ/exec';
     var DEFAULT_API_TOKEN = 'toast_qa_bookmarklet_2026';
     var DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 
