@@ -1176,38 +1176,52 @@
 
         // Build Section-based Evaluation Details:
         // Format: { "Section Name": [ { question, selected, points, feedback, feedbackText, feedbackChips } ] }
-        var details = {};
-        if (currentRubric && Array.isArray(currentRubric.sections)) {
-            currentRubric.sections.forEach(function(sec, secIdx){
-                var secName = sec.name || sec.title || ("Section " + (secIdx + 1));
-                details[secName] = [];
-                (sec.items || []).forEach(function(item, itemIdx){
-                    var key = secIdx + "_" + itemIdx;
-                    var s = state[key];
-                    if (!s) return;
-                    var selectedOption = s.options.find(function(o){ return o.id === s.sel; });
-                    var pts = selectedOption ? Number(selectedOption.points || 0) : 0;
-                    var selLabel = selectedOption ? (selectedOption.label || selectedOption.text || '') : '';
-                    var fbText = (s.text || '').trim();
-
-                    var entry = {
-                        question: item.question || item.title || '',
-                        selected: selLabel,
-                        points: pts,
-                        feedback: fbText,
-                        feedbackText: fbText
-                    };
-
-                    var chipLabels = (s.selectedTags || []).map(function(t){
-                        return t.buttonLabel || t.button_label || t.tagLabel || t.tag_label || '';
-                    }).filter(Boolean);
-                    if (chipLabels.length > 0) {
-                        entry.feedbackChips = chipLabels;
-                    }
-                    details[secName].push(entry);
-                });
-            });
+        var rawSections = [];
+        if (currentRubric) {
+            if (Array.isArray(currentRubric.sections)) {
+                rawSections = currentRubric.sections;
+            } else if (Array.isArray(currentRubric.structure)) {
+                rawSections = currentRubric.structure;
+            } else if (typeof currentRubric.structure === 'string') {
+                try { rawSections = JSON.parse(currentRubric.structure); } catch(e) {}
+            }
         }
+        if (rawSections.length === 0 && DEFAULT_FALLBACK_RUBRIC && Array.isArray(DEFAULT_FALLBACK_RUBRIC.sections)) {
+            rawSections = DEFAULT_FALLBACK_RUBRIC.sections;
+        }
+
+        var details = {};
+        rawSections.forEach(function(sec, secIdx){
+            var secName = sec.name || sec.title || ("Section " + (secIdx + 1));
+            details[secName] = [];
+            (sec.items || []).forEach(function(item, itemIdx){
+                var keyColon = secIdx + ":" + itemIdx;
+                var keyUnderscore = secIdx + "_" + itemIdx;
+                var s = state[keyColon] || state[keyUnderscore];
+                if (!s) return;
+
+                var selectedOption = s.options.find(function(o){ return o.id === s.sel; });
+                var pts = selectedOption ? Number(selectedOption.points || 0) : 0;
+                var selLabel = selectedOption ? (selectedOption.label || selectedOption.text || '') : '';
+                var fbText = (s.text || '').trim();
+
+                var entry = {
+                    question: item.question || item.title || item.shortName || ('Question ' + (itemIdx + 1)),
+                    selected: selLabel,
+                    points: pts,
+                    feedback: fbText,
+                    feedbackText: fbText
+                };
+
+                var chipLabels = (s.selectedTags || []).map(function(t){
+                    return t.buttonLabel || t.button_label || t.tagLabel || t.tag_label || '';
+                }).filter(Boolean);
+                if (chipLabels.length > 0) {
+                    entry.feedbackChips = chipLabels;
+                }
+                details[secName].push(entry);
+            });
+        });
 
         var totalPoints = 0;
         var earnedPoints = 0;
