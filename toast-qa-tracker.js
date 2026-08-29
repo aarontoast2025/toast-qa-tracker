@@ -39,6 +39,8 @@
     var globalUsers = [];
     var globalAssignments = [];
     var selectedAssignmentId = "";
+    var globalEvalTypes = ["Standard", "Calibration", "Targeted", "Audit"];
+    var currentQaDisplayName = "";
     var existingRecordId = null;
 
     // --- Styles ---
@@ -575,7 +577,7 @@
         return wrap;
     };
 
-    // 1. Agent's Name Dropdown (BEFORE Interaction ID)
+    // 1. Agent's Name Dropdown
     var selAgent = createElement("select", sSelect);
     selAgent.innerHTML = "<option value=''>-- Select Assigned Agent --</option>";
     var wrapAgent = createFieldWrapper("👤 Agent's Name", selAgent);
@@ -590,7 +592,29 @@
     duplicateWarningBox.style.cssText = "display:none;background:#fef2f2;border:1px solid #ef4444;border-radius:5px;padding:6px 10px;margin-top:6px;color:#991b1b;font-size:11px;font-weight:600;line-height:1.4";
     wrapInteractionId.appendChild(duplicateWarningBox);
 
-    // 3. Call ANI / DNIS
+    // Row 1: Agent's Name and Interaction ID
+    var rowAgentInteraction = createElement("div", "grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;");
+    rowAgentInteraction.appendChild(wrapAgent);
+    rowAgentInteraction.appendChild(wrapInteractionId);
+    headerFieldsContainer.appendChild(rowAgentInteraction);
+
+    // 3. Evaluation Type Dropdown
+    var selEvalType = createElement("select", sSelect);
+    var updateEvalTypesDropdown = function(selectedVal) {
+        var prevVal = selectedVal || selEvalType.value || "Standard";
+        selEvalType.innerHTML = "";
+        globalEvalTypes.forEach(function(t){
+            var opt = createElement("option");
+            opt.value = t;
+            opt.textContent = t;
+            if (t.toLowerCase() === prevVal.toLowerCase()) opt.selected = true;
+            selEvalType.appendChild(opt);
+        });
+    };
+    updateEvalTypesDropdown("Standard");
+    var wrapEvalType = createFieldWrapper("📋 Evaluation Type", selEvalType);
+
+    // 4. Call ANI / DNIS
     var aniOpts = getAniDnisOptions();
     var defaultAni = (aniOpts.length > 1) ? aniOpts[1] : (aniOpts[0] || "");
     var selAni;
@@ -608,9 +632,11 @@
     }
     var wrapAni = createFieldWrapper("📞 Call ANI/DNIS", selAni);
 
-    headerFieldsContainer.appendChild(wrapAgent);
-    headerFieldsContainer.appendChild(wrapInteractionId);
-    headerFieldsContainer.appendChild(wrapAni);
+    // Row 2: Evaluation Type and Call ANI/DNIS
+    var rowEvalTypeAni = createElement("div", "grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;");
+    rowEvalTypeAni.appendChild(wrapEvalType);
+    rowEvalTypeAni.appendChild(wrapAni);
+    headerFieldsContainer.appendChild(rowEvalTypeAni);
 
     // Case # & Call Duration Row
     var caseDurationRow = createElement("div", "grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;");
@@ -1180,6 +1206,7 @@
                 opt.dataset.rubricId = a.rubricId || "";
                 opt.dataset.agentName = agentLabel;
                 opt.dataset.asgId = a.id;
+                opt.dataset.evalType = a.evaluationType || "Standard";
 
                 if (pageAdvocateName && agentLabel.toLowerCase().includes(pageAdvocateName)) {
                     opt.selected = true;
@@ -1214,6 +1241,10 @@
             // Switch to that assignment's Rubric ID
             if (rubricId) {
                 switchRubricById(rubricId);
+            }
+            var asgEvalType = selectedOpt.dataset.evalType || "Standard";
+            if (asgEvalType && selEvalType) {
+                selEvalType.value = asgEvalType;
             }
         } else {
             selectedAssignmentId = "";
@@ -1327,6 +1358,8 @@
         var selectedAsg = selectedAssignmentId ? globalAssignments.find(function(a){ return a.id === selectedAssignmentId; }) : null;
         var agentSnap = selectedAsg && selectedAsg.agentSnapshot ? (typeof selectedAsg.agentSnapshot === 'string' ? JSON.parse(selectedAsg.agentSnapshot) : selectedAsg.agentSnapshot) : null;
 
+        var resolvedQaName = currentQaDisplayName || formatEmailToName(QA_EMAIL) || QA_EMAIL;
+
         var payload = {
             action: 'submit_evaluation',
             token: API_TOKEN,
@@ -1336,7 +1369,8 @@
                 agentName: resolvedAgentName,
                 agentEmail: (selectedAsg && selectedAsg.agentEmail) || '',
                 agentSnapshot: agentSnap,
-                qaName: QA_EMAIL,
+                qaName: resolvedQaName,
+                evaluationType: (selEvalType && selEvalType.value) ? selEvalType.value : ((selectedAsg && selectedAsg.evaluationType) || 'Standard'),
                 callAniDnis: selAni.value ? selAni.value.trim() : "",
                 caseNo: inpCaseNo.value.trim(),
                 callDuration: inpDuration.value.trim(),
@@ -1409,6 +1443,7 @@
                     if(record.caseCategory && !inpCategory.value) inpCategory.value = record.caseCategory;
                     if(record.caseSubCategory && !inpSubCategory.value) inpSubCategory.value = record.caseSubCategory;
                     if(record.issueConcern && !txtIssue.value) txtIssue.value = record.issueConcern;
+                    if(record.evaluationType && selEvalType) selEvalType.value = record.evaluationType;
 
                     if (record.rubricId) switchRubricById(record.rubricId);
 
