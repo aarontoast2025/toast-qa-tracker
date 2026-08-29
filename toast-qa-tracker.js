@@ -39,7 +39,7 @@
     var globalUsers = [];
     var globalAssignments = [];
     var selectedAssignmentId = "";
-    var globalEvalTypes = ["Standard", "Calibration", "Targeted", "Audit"];
+    var globalEvalTypes = [];
     var currentQaDisplayName = "";
     var existingRecordId = null;
 
@@ -601,17 +601,27 @@
     // 3. Evaluation Type Dropdown
     var selEvalType = createElement("select", sSelect);
     var updateEvalTypesDropdown = function(selectedVal) {
-        var prevVal = selectedVal || selEvalType.value || "Standard";
+        var prevVal = selectedVal || selEvalType.value || "";
         selEvalType.innerHTML = "";
+        if (!globalEvalTypes || globalEvalTypes.length === 0) {
+            var optPlaceholder = createElement("option");
+            optPlaceholder.value = "";
+            optPlaceholder.textContent = "-- Loading Types from Settings --";
+            selEvalType.appendChild(optPlaceholder);
+            return;
+        }
         globalEvalTypes.forEach(function(t){
             var opt = createElement("option");
             opt.value = t;
             opt.textContent = t;
-            if (t.toLowerCase() === prevVal.toLowerCase()) opt.selected = true;
+            if (prevVal && t.toLowerCase() === prevVal.toLowerCase()) opt.selected = true;
             selEvalType.appendChild(opt);
         });
+        if (!selEvalType.value && globalEvalTypes.length > 0) {
+            selEvalType.value = globalEvalTypes[0];
+        }
     };
-    updateEvalTypesDropdown("Standard");
+    updateEvalTypesDropdown();
     var wrapEvalType = createFieldWrapper("📋 Evaluation Type", selEvalType);
 
     // 4. Call ANI / DNIS
@@ -1755,14 +1765,18 @@
     toolsMenu.appendChild(createMenuItem("⚙️ Configure API & Gemini Key", showSettingsModal, toolsMenu));
     toolsMenu.appendChild(createMenuItem("🔄 Force Refresh Database", function(){
         storage.set('last_sync_ts', '');
-        checkAndSyncData(true);
+        idb.delete('cached_payload').then(function(){
+            checkAndSyncData(true);
+        }).catch(function(){
+            checkAndSyncData(true);
+        });
     }, toolsMenu));
 
-    // --- Sync & Initialization Logic (Two-Month Window + Timestamp Check) ---
+    // --- Sync & Initialization Logic (Bulk Processing & Local IndexedDB Storage) ---
     var checkAndSyncData = function(forceRefresh) {
         showLoading("Loading Toast QA Data...");
 
-        // 1. Load from IndexedDB immediately (instant rendering!)
+        // 1. Bulk restore from IndexedDB immediately (instant 0ms startup!)
         idb.get('cached_payload').then(function(cached){
             if (cached && !forceRefresh) {
                 allRubrics = (cached.rubrics && cached.rubrics.length > 0) ? cached.rubrics : [DEFAULT_FALLBACK_RUBRIC];
@@ -1770,10 +1784,16 @@
                 globalFeedbackTags = cached.feedbackChips || [];
                 globalFeedbackGeneral = cached.feedbackGeneral || [];
                 globalUsers = cached.users || [];
+                if (cached.evalTypes && Array.isArray(cached.evalTypes) && cached.evalTypes.length > 0) {
+                    globalEvalTypes = cached.evalTypes;
+                    updateEvalTypesDropdown();
+                }
+                if (cached.qaName) currentQaDisplayName = cached.qaName;
 
                 currentRubric = allRubrics[0] || DEFAULT_FALLBACK_RUBRIC;
                 renderRubric(currentRubric, globalFeedbackTags, globalFeedbackGeneral);
                 updateAgentDropdown();
+                updateLiveScore();
                 hideLoading();
             }
 
@@ -1787,7 +1807,7 @@
                 return;
             }
 
-            // 2. Lightweight timestamp check (0 sheet reads)
+            // 2. Timestamp check comparing rubrics, feedback, assignments, and SETTINGS
             var syncUrl = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
                           'api=1&action=check_sync&token=' + encodeURIComponent(API_TOKEN);
 
@@ -1797,16 +1817,20 @@
                     if(!syncData.success) throw new Error(syncData.error || "Sync check failed");
 
                     var lastTs = storage.get('last_sync_ts', '');
-                    var currentTs = syncData.rubricsTimestamp + "_" + syncData.feedbackTimestamp + "_" + syncData.assignmentsTimestamp;
+                    var currentTs = syncData.rubricsTimestamp + "_" +
+                                    syncData.feedbackTimestamp + "_" +
+                                    syncData.assignmentsTimestamp + "_" +
+                                    (syncData.settingsTimestamp || '');
 
                     // If timestamps match and we have cache, STOP HERE! Zero sheet reads!
                     if (!forceRefresh && cached && lastTs === currentTs) {
                         console.log("Toast QA Tool: Cache is up-to-date (0 sheet reads!).");
+                        hideLoading();
                         return;
                     }
 
-                    // 3. Fetch fresh two-month window payload
-                    showLoading("Syncing with Google Sheets...");
+                    // 3. Bulk fetch ALL data at once from backend
+                    showLoading("Bulk syncing Toast QA data with Google Sheets...");
                     var initUrl = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
                                   'api=1&action=get_init_data&token=' + encodeURIComponent(API_TOKEN) +
                                   '&qa_email=' + encodeURIComponent(QA_EMAIL);
@@ -1816,6 +1840,7 @@
                         .then(function(data){
                             if(!data.success) throw new Error(data.error || "Failed to fetch data");
 
+                            // Store ALL data bulk payload in IndexedDB for persistent local storage
                             idb.set('cached_payload', data);
                             storage.set('last_sync_ts', currentTs);
 
@@ -1824,11 +1849,17 @@
                             globalFeedbackTags = data.feedbackChips || [];
                             globalFeedbackGeneral = data.feedbackGeneral || [];
                             globalUsers = data.users || [];
+                            if (data.evalTypes && Array.isArray(data.evalTypes) && data.evalTypes.length > 0) {
+                                globalEvalTypes = data.evalTypes;
+                                updateEvalTypesDropdown();
+                            }
+                            if (data.qaName) currentQaDisplayName = data.qaName;
 
                             currentRubric = allRubrics[0] || DEFAULT_FALLBACK_RUBRIC;
                             renderRubric(currentRubric, globalFeedbackTags, globalFeedbackGeneral);
                             updateAgentDropdown();
-                            showToast("Updated with latest Google Sheets data!", false);
+                            updateLiveScore();
+                            showToast("Bulk synced with latest Google Sheets data!", false);
                         })
                         .catch(function(err){
                             console.error(err);
