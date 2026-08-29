@@ -7,7 +7,12 @@ A browser bookmarklet for Stella Connect QA evaluations integrated with Google S
 Create a new bookmark in your browser bookmarks bar with the following URL:
 
 ```javascript
-javascript:(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/aarontoast2025/toast-qa-tracker@main/toast-qa-tracker.js?v='+Date.now();document.body.appendChild(s);})();
+javascript:(function(){fetch('https://raw.githubusercontent.com/aarontoast2025/toast-qa-tracker/main/toast-qa-tracker.js?v='+Date.now()).then(function(r){return r.text();}).then(function(t){eval(t);});})();
+```
+
+*(Alternative script tag loader:)*
+```javascript
+javascript:(function(){var s=document.createElement('script');s.src='https://raw.githack.com/aarontoast2025/toast-qa-tracker/main/toast-qa-tracker.js?v='+Date.now();document.body.appendChild(s);})();
 ```
 
 ## Setup
