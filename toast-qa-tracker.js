@@ -1210,6 +1210,24 @@
         }
     };
 
+    // --- Score / State Reset Helper ---
+    var resetRubricToDefaults = function() {
+        Object.keys(state).forEach(function(key){
+            var s = state[key];
+            if (!s || !s.options) return;
+            var defaultIdx = s.options.findIndex(function(o){ return o.isDefault === true; });
+            if (defaultIdx === -1) defaultIdx = 0;
+            s.sel = s.options[defaultIdx].id;
+            s.selIndex = defaultIdx;
+            s.text = "";
+            s.checked = false;
+            s.selectedTags = [];
+            if (s.domTextarea) s.domTextarea.value = "";
+        });
+        refreshAllUI();
+        updateLiveScore();
+    };
+
     // --- Name Resolution & Assignment Matching Helpers ---
     var resolveName = function(a) {
         if (!a) return "Agent";
@@ -1275,6 +1293,9 @@
                 if (matchedAsg.evaluationType && selEvalType) {
                     selEvalType.value = matchedAsg.evaluationType;
                 }
+                if (matchedAsg.status === 'Completed') {
+                    handleAgentSelectionChange(selAgent.selectedOptions[0]);
+                }
                 return true;
             }
         }
@@ -1287,11 +1308,6 @@
         var selectedDate = inpDateEvaluation.value; // YYYY-MM-DD
         selAgent.innerHTML = "";
 
-        var defaultOpt = createElement("option");
-        defaultOpt.value = "";
-        defaultOpt.textContent = "-- Select Assigned Agent --";
-        selAgent.appendChild(defaultOpt);
-
         var pageAdvocateName = getAdvocateNameFromPage().toLowerCase();
         var normSelectedDate = normalizeDateStr(selectedDate);
 
@@ -1300,18 +1316,27 @@
             return normalizeDateStr(a.date) === normSelectedDate;
         });
 
+        var defaultOpt = createElement("option");
+        defaultOpt.value = "";
+        defaultOpt.textContent = dateAssignments.length > 0
+            ? ("-- Select Assigned Agent (" + dateAssignments.length + " assigned) --")
+            : "-- Select Assigned Agent --";
+        selAgent.appendChild(defaultOpt);
+
         if (dateAssignments.length > 0) {
             var matchedOptFound = false;
             dateAssignments.forEach(function(a){
                 var opt = createElement("option");
                 opt.value = "asg:" + a.id;
                 var agentLabel = resolveName(a);
-                opt.textContent = agentLabel + (a.status === 'Completed' ? ' [✓ Done]' : '');
+                var isDone = (a.status === 'Completed');
+                opt.textContent = agentLabel + (isDone ? ' [✓ Done]' : ' [Pending]');
                 opt.dataset.rubricId = a.rubricId || "";
                 opt.dataset.agentName = agentLabel;
                 opt.dataset.agentEmail = a.agentEmail || "";
                 opt.dataset.asgId = a.id;
                 opt.dataset.evalType = a.evaluationType || "Standard";
+                opt.dataset.status = a.status || "Pending";
 
                 if (selectedAssignmentId && a.id === selectedAssignmentId) {
                     opt.selected = true;
@@ -1326,7 +1351,7 @@
         } else {
             var optNone = createElement("option");
             optNone.disabled = true;
-            optNone.textContent = "(No assignments for " + selectedDate + ")";
+            optNone.textContent = "(No assignments for " + (selectedDate || "selected date") + ")";
             selAgent.appendChild(optNone);
         }
 
@@ -1337,40 +1362,75 @@
         selAgent.appendChild(optCustom);
     };
 
-    // When an agent is chosen from the dropdown:
-    addListener(selAgent, "change", function(e){
-        var val = e.target.value;
-        var selectedOpt = selAgent.selectedOptions[0];
+    // Unified Agent Selection Handler
+    var handleAgentSelectionChange = function(selectedOpt) {
+        if (!selectedOpt) return;
+        var val = selectedOpt.value || "";
 
         if (val && val.startsWith("asg:")) {
             selectedAssignmentId = selectedOpt.dataset.asgId || "";
-            var rubricId = selectedOpt.dataset.rubricId || "";
-            var agentName = selectedOpt.dataset.agentName || "";
+            var asg = globalAssignments.find(function(a){ return a.id === selectedAssignmentId; });
+            var rubricId = selectedOpt.dataset.rubricId || (asg && asg.rubricId) || "";
+            var asgEvalType = selectedOpt.dataset.evalType || (asg && asg.evaluationType) || "Standard";
 
-            // Switch to that assignment's Rubric ID
-            if (rubricId) {
-                switchRubricById(rubricId);
-            }
-            var asgEvalType = selectedOpt.dataset.evalType || "Standard";
-            if (asgEvalType && selEvalType) {
-                selEvalType.value = asgEvalType;
+            if (rubricId) switchRubricById(rubricId);
+            if (asgEvalType && selEvalType) selEvalType.value = asgEvalType;
+
+            // Check if this assignment is already completed
+            if (asg && asg.status === 'Completed') {
+                showLoading("Loading completed evaluation for " + (selectedOpt.dataset.agentName || "agent") + "...");
+                var url = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
+                          'api=1&action=check_existing&token=' + encodeURIComponent(API_TOKEN) +
+                          '&assignment_id=' + encodeURIComponent(asg.id);
+                fetch(url)
+                    .then(function(res){ return res.json(); })
+                    .then(function(resData){
+                        if (resData.success && resData.data) {
+                            populateEvaluationRecord(resData.data, asg);
+                        } else if (inpInteractionId.value) {
+                            checkExistingRecord();
+                        }
+                    })
+                    .catch(function(err){ console.warn("Load completed asg error:", err); })
+                    .finally(function(){ hideLoading(); });
+            } else {
+                // Fresh/Pending assignment: Reset rubric and scoresheet to clean state
+                duplicateWarningBox.style.display = "none";
+                duplicateWarningBox.innerHTML = "";
+                existingRecordId = null;
+                resetRubricToDefaults();
+
+                // Pre-fill extracted Stella Connect data
+                if (getInteractionId()) inpInteractionId.value = getInteractionId();
+                if (getCallDuration()) inpDuration.value = getCallDuration();
+                var pDate = getInteractionDateFromPage();
+                if (pDate) inpDateInteraction.value = pDate;
+
+                if (inpInteractionId.value) {
+                    checkExistingRecord();
+                }
             }
         } else {
             selectedAssignmentId = "";
+            duplicateWarningBox.style.display = "none";
+            duplicateWarningBox.innerHTML = "";
+            existingRecordId = null;
+            resetRubricToDefaults();
         }
+    };
+
+    // When an agent is chosen from the dropdown:
+    addListener(selAgent, "change", function(e){
+        handleAgentSelectionChange(selAgent.selectedOptions[0]);
     });
 
     // When Date of Evaluation changes:
     addListener(inpDateEvaluation, "change", function(){
         updateAgentDropdown();
 
-        // If an agent was automatically selected for the new date, trigger rubric / eval type sync
+        // Trigger selection handler for newly selected option
         var selectedOpt = selAgent.selectedOptions[0];
-        if (selectedOpt && selectedOpt.value && selectedOpt.value.startsWith("asg:")) {
-            selectedAssignmentId = selectedOpt.dataset.asgId || "";
-            if (selectedOpt.dataset.rubricId) switchRubricById(selectedOpt.dataset.rubricId);
-            if (selectedOpt.dataset.evalType && selEvalType) selEvalType.value = selectedOpt.dataset.evalType;
-        }
+        handleAgentSelectionChange(selectedOpt);
 
         // Check if selected date is outside 2-month window
         var selDate = inpDateEvaluation.value;
@@ -1382,7 +1442,7 @@
         var monthKey = year + '-' + month;
         idb.get('month_' + monthKey).then(function(cachedMonth){
             if (!cachedMonth && API_BASE_URL) {
-                // Fetch this month on-demand
+                // Fetch this month on-demand (past or future)
                 showLoading("Fetching assignments for " + selDate + "...");
                 var url = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
                           'api=1&action=get_month_data&token=' + encodeURIComponent(API_TOKEN) +
@@ -1400,6 +1460,7 @@
                                 }
                             });
                             updateAgentDropdown();
+                            handleAgentSelectionChange(selAgent.selectedOptions[0]);
                             showToast("Loaded assignments for " + selDate, false);
                         }
                     })
@@ -1453,7 +1514,8 @@
                     selected: selLabel,
                     points: pts,
                     feedback: fbText,
-                    feedbackText: fbText
+                    feedbackText: fbText,
+                    checked: !!(s.checked)
                 };
 
                 var chipLabels = (s.selectedTags || []).map(function(t){
@@ -1525,216 +1587,225 @@
         });
     };
 
-    // Check for previous evaluation by Interaction ID & Auto-populate completed entry
-    var checkExistingRecord = function() {
-        var iId = inpInteractionId.value.trim();
-        if(!iId || !API_BASE_URL) {
+    // --- Unified Evaluation Record Populator ---
+    var populateEvaluationRecord = function(record, asg) {
+        if (!record) return;
+        existingRecordId = record.id;
+
+        if (!asg && record.assignmentId) {
+            asg = globalAssignments.find(function(a){ return String(a.id) === String(record.assignmentId); });
+        }
+        if (!asg && record.agentEmail) {
+            asg = globalAssignments.find(function(a){ return (a.agentEmail || '').toLowerCase() === String(record.agentEmail || '').toLowerCase(); });
+        }
+
+        var evalDate = "";
+        if (asg && asg.date) {
+            evalDate = normalizeDateStr(asg.date);
+        } else {
+            evalDate = normalizeDateStr(record.dateOfEvaluation || record.evaluationDate || record.submittedAt || record.date || "");
+        }
+
+        var qaName = record.qaName || record.qaEmail || "another QA";
+        var score = (record.score !== undefined && record.score !== null && record.score !== "") ? (" • Score: " + record.score + "%") : "";
+
+        // Display Duplicate Warning Banner
+        duplicateWarningBox.style.display = "block";
+        duplicateWarningBox.innerHTML = "⚠️ <strong>Existing Completed Evaluation</strong><br>Evaluated on " + (evalDate || "previous date") + " by " + qaName + score + ". All details loaded below.";
+        showToast("ℹ️ Loaded existing evaluation data from database", false);
+
+        // 1. Auto-populate Date of Evaluation to match completed entry
+        if (evalDate) {
+            inpDateEvaluation.value = evalDate;
+            if (asg) selectedAssignmentId = asg.id;
+            updateAgentDropdown();
+        }
+
+        // 2. Automatically select the Agent's Name in dropdown
+        var snap = null;
+        if (record.agentSnapshot) {
+            try {
+                snap = typeof record.agentSnapshot === 'string' ? JSON.parse(record.agentSnapshot) : record.agentSnapshot;
+            } catch(e) { snap = null; }
+        }
+
+        var targetEmail = String(record.agentEmail || (snap && (snap.toasttabEmail || snap.internalIbexEmail)) || (asg && asg.agentEmail) || '').trim().toLowerCase();
+        var targetName = formatToDisplayName((snap && (snap.displayName || snap.fullName)) || record.agentName || '').trim().toLowerCase();
+        var rawRecordName = String(record.agentName || '').trim().toLowerCase();
+
+        var foundAgentIdx = -1;
+        for (var oi = 0; oi < selAgent.options.length; oi++) {
+            var opt = selAgent.options[oi];
+            var optEmail = String(opt.dataset.agentEmail || '').trim().toLowerCase();
+            var optName = String(opt.dataset.agentName || opt.textContent || '').trim().toLowerCase();
+            var optAsgId = String(opt.dataset.asgId || '');
+
+            if (asg && optAsgId && optAsgId === asg.id) {
+                foundAgentIdx = oi;
+                break;
+            }
+            if (targetEmail && optEmail === targetEmail) {
+                foundAgentIdx = oi;
+                break;
+            }
+            if (targetName && (optName === targetName || optName.includes(targetName) || targetName.includes(optName))) {
+                foundAgentIdx = oi;
+                break;
+            }
+            if (rawRecordName && (optName === rawRecordName || optName.includes(rawRecordName) || rawRecordName.includes(optName))) {
+                foundAgentIdx = oi;
+                break;
+            }
+        }
+
+        if (foundAgentIdx !== -1) {
+            selAgent.selectedIndex = foundAgentIdx;
+            selectedAssignmentId = selAgent.options[foundAgentIdx].dataset.asgId || (asg && asg.id) || "";
+        } else {
+            var dispName = (snap && (snap.displayName || formatToDisplayName(snap.fullName))) || formatToDisplayName(record.agentName) || record.agentName || record.agentEmail || "Assigned Agent";
+            var newOpt = createElement("option");
+            newOpt.value = "db:" + (targetEmail || record.agentName || "agent");
+            newOpt.textContent = dispName;
+            newOpt.dataset.agentName = dispName;
+            newOpt.dataset.agentEmail = targetEmail;
+            newOpt.dataset.rubricId = record.rubricId || "";
+            newOpt.dataset.evalType = record.evaluationType || "Standard";
+            newOpt.selected = true;
+            selAgent.appendChild(newOpt);
+            selAgent.selectedIndex = selAgent.options.length - 1;
+        }
+
+        // 3. Auto-populate all header fields
+        if(record.interactionId) inpInteractionId.value = record.interactionId;
+        if(record.caseNo) inpCaseNo.value = record.caseNo;
+        if(record.callDuration !== undefined && record.callDuration !== null && record.callDuration !== '') inpDuration.value = record.callDuration;
+        if(record.callAniDnis && selAni) {
+            if (selAni.tagName === 'SELECT') {
+                var hasAniOpt = Array.from(selAni.options).some(function(o){ return o.value === record.callAniDnis; });
+                if (!hasAniOpt) {
+                    var aniOpt = createElement("option");
+                    aniOpt.value = record.callAniDnis;
+                    aniOpt.textContent = record.callAniDnis;
+                    selAni.appendChild(aniOpt);
+                }
+            }
+            selAni.value = record.callAniDnis;
+        }
+        if(record.dateOfInteraction) {
+            inpDateInteraction.value = normalizeDateStr(record.dateOfInteraction);
+        }
+        if(record.caseCategory) inpCategory.value = record.caseCategory;
+        if(record.caseSubCategory) inpSubCategory.value = record.caseSubCategory;
+        if(record.issueConcern) txtIssue.value = record.issueConcern;
+        if(record.evaluationType && selEvalType) {
+            var hasEtOpt = Array.from(selEvalType.options).some(function(o){ return o.value.toLowerCase() === record.evaluationType.toLowerCase(); });
+            if (!hasEtOpt) {
+                var etOpt = createElement("option");
+                etOpt.value = record.evaluationType;
+                etOpt.textContent = record.evaluationType;
+                selEvalType.appendChild(etOpt);
+            }
+            selEvalType.value = record.evaluationType;
+        }
+
+        // 4. Switch Rubric if needed
+        var targetRubricId = record.rubricId || (asg && asg.rubricId) || (currentRubric && currentRubric.id);
+        if (targetRubricId && currentRubric && String(currentRubric.id) !== String(targetRubricId)) {
+            switchRubricById(targetRubricId);
+        }
+
+        // 5. Restore Rubric answers, selected feedback chips, and feedback text
+        if (record.evaluationDetails) {
+            try {
+                var details = typeof record.evaluationDetails === 'string' ? JSON.parse(record.evaluationDetails) : record.evaluationDetails;
+                if (typeof details === 'object' && details !== null && !Array.isArray(details)) {
+                    Object.keys(details).forEach(function(secName, secIdx){
+                        var sItems = details[secName];
+                        if (Array.isArray(sItems)) {
+                            sItems.forEach(function(it, itIdx){
+                                var key = secIdx + ":" + itIdx;
+                                if (!state[key]) key = secIdx + "_" + itIdx;
+                                if (!state[key]) {
+                                    key = Object.keys(state).find(function(k){
+                                        var sObj = state[k];
+                                        if (!sObj) return false;
+                                        var itQ = (it.question || '').trim().toLowerCase();
+                                        var curQ = (sObj.question || (sObj.domTextarea && sObj.domTextarea.closest('.rubric-section') && sObj.domTextarea.closest('.rubric-section').querySelector('span') && sObj.domTextarea.closest('.rubric-section').querySelector('span').textContent) || '').trim().toLowerCase();
+                                        return (curQ && curQ.includes(itQ)) || (sObj.groupName === secName && sObj.itemIdx === itIdx);
+                                    });
+                                }
+                                if (key && state[key]) {
+                                    var matchedOpt = state[key].options.find(function(o){
+                                        return o.label === it.selected || (it.selected && o.label.toLowerCase() === String(it.selected).toLowerCase());
+                                    });
+                                    if (matchedOpt) {
+                                        state[key].sel = matchedOpt.id;
+                                        state[key].selIndex = state[key].options.indexOf(matchedOpt);
+                                    }
+                                    if (it.checked !== undefined) {
+                                        state[key].checked = (it.checked === true || it.checked === 'true');
+                                    }
+                                    state[key].text = it.feedbackText || it.feedback || "";
+
+                                    if (Array.isArray(it.feedbackChips) && it.feedbackChips.length > 0) {
+                                        state[key].selectedTags = it.feedbackChips.map(function(chipLabel){
+                                            var existing = globalFeedbackTags.find(function(gt){
+                                                return (gt.buttonLabel || gt.button_label || gt.tagLabel || gt.tag_label || '') === chipLabel;
+                                            });
+                                            return existing || { buttonLabel: chipLabel, text: chipLabel };
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                    });
+                    refreshAllUI();
+                    updateLiveScore();
+                } else if (Array.isArray(details)) {
+                    details.forEach(function(rItem){
+                        var key = Object.keys(state).find(function(k){ return state[k].id === rItem.itemId; });
+                        if(key && state[key]) {
+                            state[key].sel = rItem.answerId || rItem.selected;
+                            state[key].text = rItem.feedbackText || rItem.feedback || "";
+                            if (rItem.checked !== undefined) {
+                                state[key].checked = (rItem.checked === true || rItem.checked === 'true');
+                            }
+                            if (Array.isArray(rItem.selectedTags)) {
+                                state[key].selectedTags = rItem.selectedTags;
+                            }
+                        }
+                    });
+                    refreshAllUI();
+                    updateLiveScore();
+                }
+            } catch(e) {
+                console.error("Error restoring evaluation details:", e);
+            }
+        }
+    };
+
+    // Check for previous evaluation by Interaction ID or Assignment ID
+    var checkExistingRecord = function(params) {
+        params = params || {};
+        var iId = params.interactionId || inpInteractionId.value.trim();
+        var asgId = params.assignmentId || "";
+
+        if(!iId && !asgId) {
             duplicateWarningBox.style.display = "none";
             return;
         }
+        if(!API_BASE_URL) return;
 
         var url = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
                   'api=1&action=check_existing&token=' + encodeURIComponent(API_TOKEN) +
-                  '&interaction_id=' + encodeURIComponent(iId);
+                  (iId ? ('&interaction_id=' + encodeURIComponent(iId)) : '') +
+                  (asgId ? ('&assignment_id=' + encodeURIComponent(asgId)) : '');
 
         fetch(url)
             .then(function(res){ return res.json(); })
             .then(function(result){
                 if(result.success && result.data) {
-                    var record = result.data;
-                    existingRecordId = record.id;
-
-                    var asg = null;
-                    if (record.assignmentId) {
-                        asg = globalAssignments.find(function(a){ return String(a.id) === String(record.assignmentId); });
-                    }
-                    if (!asg && record.agentEmail) {
-                        asg = globalAssignments.find(function(a){ return (a.agentEmail || '').toLowerCase() === String(record.agentEmail || '').toLowerCase(); });
-                    }
-
-                    var evalDate = "";
-                    if (asg && asg.date) {
-                        evalDate = normalizeDateStr(asg.date);
-                    } else {
-                        evalDate = normalizeDateStr(record.dateOfEvaluation || record.evaluationDate || record.submittedAt || record.date || "");
-                    }
-
-                    var qaName = record.qaName || record.qaEmail || "another QA";
-                    var score = (record.score !== undefined && record.score !== null && record.score !== "") ? (" • Score: " + record.score + "%") : "";
-
-                    // Display Duplicate Warning Banner
-                    duplicateWarningBox.style.display = "block";
-                    duplicateWarningBox.innerHTML = "⚠️ <strong>Existing Completed Evaluation</strong><br>Evaluated on " + (evalDate || "previous date") + " by " + qaName + score + ". All details loaded below.";
-                    showToast("ℹ️ Loaded existing evaluation data from database", false);
-
-                    // 1. Auto-populate Date of Evaluation to match completed entry
-                    if (evalDate) {
-                        inpDateEvaluation.value = evalDate;
-                        if (asg) selectedAssignmentId = asg.id;
-                        updateAgentDropdown(); // update dropdown choices for that evaluation date
-                    }
-
-                    // 2. Automatically select the Agent's Name in dropdown
-                    var snap = null;
-                    if (record.agentSnapshot) {
-                        try {
-                            snap = typeof record.agentSnapshot === 'string' ? JSON.parse(record.agentSnapshot) : record.agentSnapshot;
-                        } catch(e) { snap = null; }
-                    }
-
-                    var targetEmail = String(record.agentEmail || (snap && (snap.toasttabEmail || snap.internalIbexEmail)) || (asg && asg.agentEmail) || '').trim().toLowerCase();
-                    var targetName = formatToDisplayName((snap && (snap.displayName || snap.fullName)) || record.agentName || '').trim().toLowerCase();
-                    var rawRecordName = String(record.agentName || '').trim().toLowerCase();
-
-                    var foundAgentIdx = -1;
-                    for (var oi = 0; oi < selAgent.options.length; oi++) {
-                        var opt = selAgent.options[oi];
-                        var optEmail = String(opt.dataset.agentEmail || '').trim().toLowerCase();
-                        var optName = String(opt.dataset.agentName || opt.textContent || '').trim().toLowerCase();
-
-                        if (targetEmail && optEmail === targetEmail) {
-                            foundAgentIdx = oi;
-                            break;
-                        }
-                        if (targetName && (optName === targetName || optName.includes(targetName) || targetName.includes(optName))) {
-                            foundAgentIdx = oi;
-                            break;
-                        }
-                        if (rawRecordName && (optName === rawRecordName || optName.includes(rawRecordName) || rawRecordName.includes(optName))) {
-                            foundAgentIdx = oi;
-                            break;
-                        }
-                    }
-
-                    if (foundAgentIdx !== -1) {
-                        selAgent.selectedIndex = foundAgentIdx;
-                        selectedAssignmentId = selAgent.options[foundAgentIdx].dataset.asgId || "";
-                    } else {
-                        // Dynamically append the evaluated agent if not in current assignment roster
-                        var dispName = (snap && (snap.displayName || formatToDisplayName(snap.fullName))) || formatToDisplayName(record.agentName) || record.agentName || record.agentEmail || "Assigned Agent";
-                        var newOpt = createElement("option");
-                        newOpt.value = "db:" + (targetEmail || record.agentName || "agent");
-                        newOpt.textContent = dispName;
-                        newOpt.dataset.agentName = dispName;
-                        newOpt.dataset.agentEmail = targetEmail;
-                        newOpt.dataset.rubricId = record.rubricId || "";
-                        newOpt.dataset.evalType = record.evaluationType || "Standard";
-                        newOpt.selected = true;
-                        selAgent.appendChild(newOpt);
-                        selAgent.selectedIndex = selAgent.options.length - 1;
-                    }
-
-                    // 3. Auto-populate all header fields
-                    if(record.caseNo) inpCaseNo.value = record.caseNo;
-                    if(record.callDuration !== undefined && record.callDuration !== null && record.callDuration !== '') inpDuration.value = record.callDuration;
-                    if(record.callAniDnis && selAni) {
-                        if (selAni.tagName === 'SELECT') {
-                            var hasAniOpt = Array.from(selAni.options).some(function(o){ return o.value === record.callAniDnis; });
-                            if (!hasAniOpt) {
-                                var aniOpt = createElement("option");
-                                aniOpt.value = record.callAniDnis;
-                                aniOpt.textContent = record.callAniDnis;
-                                selAni.appendChild(aniOpt);
-                            }
-                        }
-                        selAni.value = record.callAniDnis;
-                    }
-                    if(record.dateOfInteraction) {
-                        inpDateInteraction.value = normalizeDateStr(record.dateOfInteraction);
-                    }
-                    if(record.caseCategory) inpCategory.value = record.caseCategory;
-                    if(record.caseSubCategory) inpSubCategory.value = record.caseSubCategory;
-                    if(record.issueConcern) txtIssue.value = record.issueConcern;
-                    if(record.evaluationType && selEvalType) {
-                        var hasEtOpt = Array.from(selEvalType.options).some(function(o){ return o.value.toLowerCase() === record.evaluationType.toLowerCase(); });
-                        if (!hasEtOpt) {
-                            var etOpt = createElement("option");
-                            etOpt.value = record.evaluationType;
-                            etOpt.textContent = record.evaluationType;
-                            selEvalType.appendChild(etOpt);
-                        }
-                        selEvalType.value = record.evaluationType;
-                    }
-
-                    // 4. Switch Rubric if needed
-                    var targetRubricId = record.rubricId || (currentRubric && currentRubric.id);
-                    if (targetRubricId && currentRubric && String(currentRubric.id) !== String(targetRubricId)) {
-                        switchRubricById(targetRubricId);
-                    }
-
-                    // 5. Restore Rubric answers, selected feedback chips, and feedback text
-                    if (record.evaluationDetails) {
-                        try {
-                            var details = typeof record.evaluationDetails === 'string' ? JSON.parse(record.evaluationDetails) : record.evaluationDetails;
-                            if (typeof details === 'object' && details !== null && !Array.isArray(details)) {
-                                // Section-based dictionary: { "Section Name": [ { question, selected, points, feedback, feedbackText, feedbackChips, checked } ] }
-                                Object.keys(details).forEach(function(secName, secIdx){
-                                    var sItems = details[secName];
-                                    if (Array.isArray(sItems)) {
-                                        sItems.forEach(function(it, itIdx){
-                                            var key = secIdx + ":" + itIdx;
-                                            if (!state[key]) key = secIdx + "_" + itIdx;
-                                            if (!state[key]) {
-                                                key = Object.keys(state).find(function(k){
-                                                    var sObj = state[k];
-                                                    if (!sObj) return false;
-                                                    var itQ = (it.question || '').trim().toLowerCase();
-                                                    var curQ = (sObj.question || (sObj.domTextarea && sObj.domTextarea.closest('.rubric-section') && sObj.domTextarea.closest('.rubric-section').querySelector('span') && sObj.domTextarea.closest('.rubric-section').querySelector('span').textContent) || '').trim().toLowerCase();
-                                                    return (curQ && curQ.includes(itQ)) || (sObj.groupName === secName && sObj.itemIdx === itIdx);
-                                                });
-                                            }
-                                            if (key && state[key]) {
-                                                // Answer selection
-                                                var matchedOpt = state[key].options.find(function(o){
-                                                    return o.label === it.selected || (it.selected && o.label.toLowerCase() === String(it.selected).toLowerCase());
-                                                });
-                                                if (matchedOpt) {
-                                                    state[key].sel = matchedOpt.id;
-                                                    state[key].selIndex = state[key].options.indexOf(matchedOpt);
-                                                }
-                                                // Checkbox state
-                                                if (it.checked !== undefined) {
-                                                    state[key].checked = (it.checked === true || it.checked === 'true');
-                                                }
-                                                // Feedback comments text
-                                                state[key].text = it.feedbackText || it.feedback || "";
-
-                                                // Feedback chips
-                                                if (Array.isArray(it.feedbackChips) && it.feedbackChips.length > 0) {
-                                                    state[key].selectedTags = it.feedbackChips.map(function(chipLabel){
-                                                        var existing = globalFeedbackTags.find(function(gt){
-                                                            return (gt.buttonLabel || gt.button_label || gt.tagLabel || gt.tag_label || '') === chipLabel;
-                                                        });
-                                                        return existing || { buttonLabel: chipLabel, text: chipLabel };
-                                                    });
-                                                }
-                                            }
-                                        });
-                                    }
-                                });
-                                refreshAllUI();
-                                updateLiveScore();
-                            } else if (Array.isArray(details)) {
-                                details.forEach(function(rItem){
-                                    var key = Object.keys(state).find(function(k){ return state[k].id === rItem.itemId; });
-                                    if(key && state[key]) {
-                                        state[key].sel = rItem.answerId || rItem.selected;
-                                        state[key].text = rItem.feedbackText || rItem.feedback || "";
-                                        if (rItem.checked !== undefined) {
-                                            state[key].checked = (rItem.checked === true || rItem.checked === 'true');
-                                        }
-                                        if (Array.isArray(rItem.selectedTags)) {
-                                            state[key].selectedTags = rItem.selectedTags;
-                                        }
-                                    }
-                                });
-                                refreshAllUI();
-                                updateLiveScore();
-                            }
-                        } catch(e) {
-                            console.error("Error restoring evaluation details:", e);
-                        }
-                    }
+                    populateEvaluationRecord(result.data);
                 } else {
                     duplicateWarningBox.style.display = "none";
                     duplicateWarningBox.innerHTML = "";
