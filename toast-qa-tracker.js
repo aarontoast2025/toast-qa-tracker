@@ -2717,10 +2717,14 @@
         lblKey.textContent = "Your Gemini API Key (from Google AI Studio)";
         grpKey.appendChild(lblKey);
 
+        var currentSelectedEmail = selEmail.value.trim().toLowerCase();
+        var selectedUserObj = (globalUsers && globalUsers.length > 0 && currentSelectedEmail) ? globalUsers.find(function(u){ return (u.email || '').toLowerCase() === currentSelectedEmail; }) : null;
+        var initialKey = selectedUserObj ? (selectedUserObj.geminiApiKey || '') : (GEMINI_API_KEY || storage.get('gemini_key', ''));
+
         var inpKey = createElement("input", sInput);
-        inpKey.type = "password";
+        inpKey.type = initialKey ? "password" : "text";
         inpKey.placeholder = "Paste your AIzaSy... key";
-        inpKey.value = GEMINI_API_KEY;
+        inpKey.value = initialKey || '';
 
         var wrapKey = createElement("div", "position:relative;display:flex;align-items:center;width:100%;margin:0;");
         var iconKey = createElement("span", "position:absolute;left:11px;pointer-events:none;font-size:13px;z-index:2;user-select:none;display:inline-flex;align-items:center;justify-content:center;");
@@ -2748,10 +2752,14 @@
             inpKey.focus();
         });
 
-        if (GEMINI_API_KEY) {
+        if (initialKey) {
             inpKey.readOnly = true;
             inpKey.style.background = "#f8fafc";
             btnEditKey.style.display = "inline-flex";
+        } else {
+            inpKey.readOnly = false;
+            inpKey.style.background = "#ffffff";
+            btnEditKey.style.display = "none";
         }
 
         wrapKey.appendChild(iconKey);
@@ -2771,14 +2779,31 @@
                 var chosenUser = globalUsers.find(function(u){ return (u.email || '').toLowerCase() === chosenEmail; });
                 if (chosenUser) {
                     if (chosenUser.firstName) qaFirstName = chosenUser.firstName;
-                    if (chosenUser.geminiApiKey) {
-                        inpKey.value = chosenUser.geminiApiKey;
+                    var keyVal = chosenUser.geminiApiKey || '';
+                    inpKey.value = keyVal;
+                    if (keyVal) {
                         inpKey.readOnly = true;
+                        inpKey.type = "password";
                         inpKey.style.background = "#f8fafc";
                         btnEditKey.style.display = "inline-flex";
                         btnEditKey.textContent = "✏️";
+                        btnEditKey.title = "Click to edit/update API key";
+                    } else {
+                        inpKey.readOnly = false;
+                        inpKey.type = "text";
+                        inpKey.style.background = "#ffffff";
+                        btnEditKey.style.display = "none";
+                    }
+                    if (chosenUser.geminiModel) {
+                        selModel.value = chosenUser.geminiModel;
                     }
                 }
+            } else if (!chosenEmail) {
+                inpKey.value = '';
+                inpKey.readOnly = false;
+                inpKey.type = "text";
+                inpKey.style.background = "#ffffff";
+                btnEditKey.style.display = "none";
             }
         });
 
@@ -2916,8 +2941,8 @@
                 if (cached.geminiModels && Array.isArray(cached.geminiModels) && cached.geminiModels.length > 0) {
                     globalGeminiModels = cached.geminiModels;
                 }
-                if (cached.userGeminiApiKey && !GEMINI_API_KEY) {
-                    GEMINI_API_KEY = cached.userGeminiApiKey;
+                if (cached.hasOwnProperty('userGeminiApiKey')) {
+                    GEMINI_API_KEY = cached.userGeminiApiKey || '';
                     storage.set('gemini_key', GEMINI_API_KEY);
                 }
                 if (cached.userGeminiModel) {
@@ -3015,8 +3040,8 @@
                             if (data.geminiModels && Array.isArray(data.geminiModels) && data.geminiModels.length > 0) {
                                 globalGeminiModels = data.geminiModels;
                             }
-                            if (data.userGeminiApiKey) {
-                                GEMINI_API_KEY = data.userGeminiApiKey;
+                            if (data.hasOwnProperty('userGeminiApiKey')) {
+                                GEMINI_API_KEY = data.userGeminiApiKey || '';
                                 storage.set('gemini_key', GEMINI_API_KEY);
                             }
                             if (data.userGeminiModel) {
