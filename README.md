@@ -17,7 +17,7 @@ This deployment is accessed by team members in their browser to manage reviews, 
   * **Type:** Web app
   * **Description:** `QA Tracker Main Web App`
   * **Execute as:** `User accessing the web app` (or `Me`)
-  * **Who has access:** `Anyone within toasttab.com` *(Crucial: Do not set to "Anyone" on this deployment, or Apps Script will anonymize `Session.getActiveUser().getEmail()` and trigger "Login Required")*
+  * **Who has access:** `Anyone within domain` *(Crucial: Do not set to "Anyone" on this deployment, or Apps Script will anonymize `Session.getActiveUser().getEmail()` and trigger "Login Required")*
 * Use this URL for team members opening the QA Tracker.
 
 ---
