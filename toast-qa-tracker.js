@@ -2717,14 +2717,18 @@
         lblKey.textContent = "Your Gemini API Key (from Google AI Studio)";
         grpKey.appendChild(lblKey);
 
-        var currentSelectedEmail = selEmail.value.trim().toLowerCase();
-        var selectedUserObj = (globalUsers && globalUsers.length > 0 && currentSelectedEmail) ? globalUsers.find(function(u){ return (u.email || '').toLowerCase() === currentSelectedEmail; }) : null;
-        var initialKey = selectedUserObj ? (selectedUserObj.geminiApiKey || '') : (GEMINI_API_KEY || storage.get('gemini_key', ''));
+        // IMPORTANT: use QA_EMAIL directly (not selEmail.value) for the initial lookup
+        // because selEmail.value may be empty before the element is attached to the DOM.
+        var openingEmail = (QA_EMAIL || '').trim().toLowerCase();
+        var openingUserObj = (globalUsers && globalUsers.length > 0 && openingEmail)
+            ? globalUsers.find(function(u){ return (u.email || '').toLowerCase() === openingEmail; })
+            : null;
+        var initialKey = openingUserObj ? (openingUserObj.geminiApiKey || '') : '';
 
         var inpKey = createElement("input", sInput);
-        inpKey.type = initialKey ? "password" : "text";
         inpKey.placeholder = "Paste your AIzaSy... key";
-        inpKey.value = initialKey || '';
+        inpKey.value = initialKey;
+        inpKey.type = initialKey ? "password" : "text";
 
         var wrapKey = createElement("div", "position:relative;display:flex;align-items:center;width:100%;margin:0;");
         var iconKey = createElement("span", "position:absolute;left:11px;pointer-events:none;font-size:13px;z-index:2;user-select:none;display:inline-flex;align-items:center;justify-content:center;");
@@ -2741,6 +2745,24 @@
         btnEditKey.textContent = "✏️";
         btnEditKey.title = "Click to edit/update API key";
 
+        // Shared helper: update the key field UI for a given key value
+        var applyKeyToUI = function(keyVal) {
+            inpKey.value = keyVal;
+            if (keyVal) {
+                inpKey.readOnly = true;
+                inpKey.type = "password";
+                inpKey.style.background = "#f8fafc";
+                btnEditKey.style.display = "inline-flex";
+                btnEditKey.textContent = "✏️";
+                btnEditKey.title = "Click to edit/update API key";
+            } else {
+                inpKey.readOnly = false;
+                inpKey.type = "text";
+                inpKey.style.background = "#ffffff";
+                btnEditKey.style.display = "none";
+            }
+        };
+
         addListener(btnEditKey, "mouseenter", function(){ btnEditKey.style.opacity = "1"; });
         addListener(btnEditKey, "mouseleave", function(){ btnEditKey.style.opacity = "0.75"; });
         addListener(btnEditKey, "click", function(){
@@ -2752,15 +2774,8 @@
             inpKey.focus();
         });
 
-        if (initialKey) {
-            inpKey.readOnly = true;
-            inpKey.style.background = "#f8fafc";
-            btnEditKey.style.display = "inline-flex";
-        } else {
-            inpKey.readOnly = false;
-            inpKey.style.background = "#ffffff";
-            btnEditKey.style.display = "none";
-        }
+        // Apply initial state
+        applyKeyToUI(initialKey);
 
         wrapKey.appendChild(iconKey);
         wrapKey.appendChild(inpKey);
@@ -2772,38 +2787,22 @@
         grpKey.appendChild(keyHelp);
         pBody.appendChild(grpKey);
 
-        // When QA Account changes in dropdown: update API key & name if known
+        // When QA Account changes in dropdown: update API key & name from globalUsers
         addListener(selEmail, "change", function(){
             var chosenEmail = selEmail.value.trim().toLowerCase();
             if (chosenEmail && globalUsers && globalUsers.length > 0) {
                 var chosenUser = globalUsers.find(function(u){ return (u.email || '').toLowerCase() === chosenEmail; });
                 if (chosenUser) {
                     if (chosenUser.firstName) qaFirstName = chosenUser.firstName;
-                    var keyVal = chosenUser.geminiApiKey || '';
-                    inpKey.value = keyVal;
-                    if (keyVal) {
-                        inpKey.readOnly = true;
-                        inpKey.type = "password";
-                        inpKey.style.background = "#f8fafc";
-                        btnEditKey.style.display = "inline-flex";
-                        btnEditKey.textContent = "✏️";
-                        btnEditKey.title = "Click to edit/update API key";
-                    } else {
-                        inpKey.readOnly = false;
-                        inpKey.type = "text";
-                        inpKey.style.background = "#ffffff";
-                        btnEditKey.style.display = "none";
-                    }
+                    applyKeyToUI(chosenUser.geminiApiKey || '');
                     if (chosenUser.geminiModel) {
                         selModel.value = chosenUser.geminiModel;
                     }
+                } else {
+                    applyKeyToUI('');
                 }
-            } else if (!chosenEmail) {
-                inpKey.value = '';
-                inpKey.readOnly = false;
-                inpKey.type = "text";
-                inpKey.style.background = "#ffffff";
-                btnEditKey.style.display = "none";
+            } else {
+                applyKeyToUI('');
             }
         });
 
