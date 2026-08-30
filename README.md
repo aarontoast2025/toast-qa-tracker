@@ -57,7 +57,7 @@ javascript:(function(){var s=document.createElement('script');s.src='https://raw
 3. Click the **⚙️ (Settings)** icon in the top right of the modal.
 4. Enter:
    - **Apps Script API URL**: Your Bookmarklet API Deployment URL (configured with "Who has access: Anyone")
-   - **Your QA Email**: Your `@toasttab.com` email address
+   - **Your QA Email**: Your email address
    - **Gemini API Key**: Your personal Gemini API key (from Google AI Studio)
 5. Click **Save Settings**.
 
@@ -65,6 +65,6 @@ javascript:(function(){var s=document.createElement('script');s.src='https://raw
 
 ## 🔍 Troubleshooting "Login Required"
 If a user encounters the "Login Required" page:
-1. **Google Apps Script Access Setting:** Ensure the Main Web App deployment has **"Who has access"** set to **"Anyone within toasttab.com"**. When set to "Anyone", Google Apps Script strips user identity and returns an empty string for `Session.getActiveUser().getEmail()`.
-2. **Multiple Google Accounts:** If the user has multiple Google accounts logged into the browser (e.g. personal `@gmail.com` and corporate `@toasttab.com`), Google may default to the personal account. Switch to the `@toasttab.com` profile or use a dedicated Chrome Profile.
+1. **Google Apps Script Access Setting:** Ensure the Main Web App deployment has **"Who has access"** set to **"Anyone within the domain"**. When set to "Anyone", Google Apps Script strips user identity and returns an empty string for `Session.getActiveUser().getEmail()`.
+2. **Multiple Google Accounts:** If the user has multiple Google accounts logged into the browser, Google may default to the personal account. Switch to the profile or use a dedicated Chrome Profile.
 
