@@ -474,12 +474,12 @@
     // --- AI Modal Helpers ---
     var createAccordion = function(title, contentNodes, isOpen) {
         var container = createElement("div");
-        container.style.cssText = "border:1px solid #e2e8f0;border-radius:6px;margin-bottom:12px;overflow:hidden";
+        container.style.cssText = "border:1px solid #e2e8f0;border-radius:6px;margin-bottom:12px;overflow:visible;height:auto;flex-shrink:0;";
         var aHeader = createElement("div");
         aHeader.style.cssText = "padding:10px 14px;background:#f8fafc;cursor:pointer;font-weight:600;font-size:13px;color:#1e293b;display:flex;justify-content:space-between;align-items:center;user-select:none";
         aHeader.innerHTML = "<span>" + title + "</span><span style='font-size:11px;color:#94a3b8'>" + (isOpen ? "▲" : "▼") + "</span>";
         var aBody = createElement("div");
-        aBody.style.cssText = "padding:14px;border-top:1px solid #e2e8f0;background:#ffffff;display:" + (isOpen ? "block" : "none");
+        aBody.style.cssText = "padding:14px;border-top:1px solid #e2e8f0;background:#ffffff;display:" + (isOpen ? "block" : "none") + ";overflow:visible;height:auto;";
         if(Array.isArray(contentNodes)) {
             contentNodes.forEach(function(n){ aBody.appendChild(n); });
         } else {
@@ -521,10 +521,10 @@
     var showInteractionCheckerModal = function() {
         if (document.getElementById('qa-interaction-checker-overlay')) return;
 
-        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:transparent; pointer-events:none; align-items:center");
+        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:transparent; pointer-events:none; display:flex; justify-content:center; align-items:flex-start; padding-top:20px; padding-bottom:20px; overflow-y:auto;");
         pOverlay.id = "qa-interaction-checker-overlay";
-        var pModal = createElement("div", sModal + "; height:auto; max-height:88vh; width:620px; cursor:default; user-select:auto; box-shadow:0 16px 40px rgba(0,0,0,0.28); border:1px solid #cbd5e1;");
-        var pHeader = createElement("div", sHeader + "; cursor:grab; border-radius:8px 8px 0 0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 18px;");
+        var pModal = createElement("div", "background:white;border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,0.28);width:92%;max-width:680px;height:86vh;max-height:860px;display:flex;flex-direction:column;cursor:default;user-select:auto;pointer-events:auto;position:relative;border:1px solid #cbd5e1;overflow:hidden;margin-bottom:20px;");
+        var pHeader = createElement("div", sHeader + "; cursor:grab; border-radius:8px 8px 0 0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 18px; flex-shrink:0;");
         pHeader.innerHTML = "<span style='font-size:15px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;'>📝 <span>Interaction Checker</span></span>";
         var pClose = createElement("span", "cursor:pointer;font-size:20px;color:#94a3b8;line-height:1;font-weight:400;padding:2px 6px;border-radius:4px;transition:all 0.15s");
         pClose.textContent = "×";
@@ -535,10 +535,10 @@
 
         makeDraggable(pModal, pHeader);
 
-        var pBody = createElement("div", "padding:16px 20px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;user-select:text");
+        var pBody = createElement("div", "padding:16px 20px;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:12px;user-select:text;scrollbar-width:thin;scrollbar-color:#94a3b8 #f1f5f9;");
 
         // --- Section 1: Input Data & Metadata ---
-        var divInputs = createElement("div", "display:flex;flex-direction:column;gap:10px");
+        var divInputs = createElement("div", "display:flex;flex-direction:column;gap:10px;overflow:visible;height:auto;");
 
         // 1. Subject Line
         var inpSubject = createElement("input", sInput);
@@ -660,12 +660,12 @@
         pBody.appendChild(inputAccordion.container);
 
         // --- Section 2: Instructions & Format Preferences ---
-        var divInstr = createElement("div", "display:flex;flex-direction:column;gap:12px");
+        var divInstr = createElement("div", "display:flex;flex-direction:column;gap:12px;overflow:visible;height:auto;");
 
         var grpGenInstr = createElement("div");
         var lblGenInstr = createElement("label", sLabel);
         lblGenInstr.textContent = "General Instruction (Applies to all line items)";
-        var txtGenInstr = createElement("textarea", sTextarea + "; height:70px");
+        var txtGenInstr = createElement("textarea", sTextarea + "; height:70px; resize:vertical; font-size:12px; line-height:1.4;");
         txtGenInstr.placeholder = "Enter global feedback guidelines, tone, context rules...";
         txtGenInstr.value = aiInstructions.general || DEFAULT_GENERAL_INSTRUCTION;
         grpGenInstr.appendChild(lblGenInstr);
@@ -675,15 +675,15 @@
         var grpDefItem = createElement("div");
         var lblDefItem = createElement("label", sLabel);
         lblDefItem.textContent = "Default Item Format Rule";
-        var inpDefItem = createElement("input", sInput);
-        inpDefItem.placeholder = "e.g. Start with an active verb (e.g., Investigated, Reached, Verified)...";
-        inpDefItem.value = aiInstructions.defaultItem || DEFAULT_ITEM_INSTRUCTION;
+        var txtDefItem = createElement("textarea", sTextarea + "; height:60px; resize:vertical; font-size:12px; line-height:1.4;");
+        txtDefItem.placeholder = "e.g. Start with an active verb in past/present tense (e.g., Investigated, Reached, Verified)...";
+        txtDefItem.value = aiInstructions.defaultItem || DEFAULT_ITEM_INSTRUCTION;
         grpDefItem.appendChild(lblDefItem);
-        grpDefItem.appendChild(inpDefItem);
+        grpDefItem.appendChild(txtDefItem);
         divInstr.appendChild(grpDefItem);
 
         // Per-item override accordion
-        var perItemContainer = createElement("div", "display:flex;flex-direction:column;gap:8px");
+        var perItemContainer = createElement("div", "display:flex;flex-direction:column;gap:10px;height:auto;overflow:visible;width:100%;");
         var perItemInputs = {};
 
         var rawSections = [];
@@ -705,19 +705,19 @@
                 var key = sIdx + ":" + iIdx;
                 var itName = (it.question || it.shortName || it.short_name || it.text || ("Item " + itemCounter)).replace(/^\d+\.\s*/, "");
                 
-                var itemRow = createElement("div", "display:flex;flex-direction:column;gap:3px;padding:6px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;");
-                var itLabel = createElement("div", "font-size:11px;font-weight:600;color:#334155;");
+                var itemRow = createElement("div", "display:flex;flex-direction:column;gap:5px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;overflow:visible;height:auto;");
+                var itLabel = createElement("div", "font-size:12px;font-weight:600;color:#334155;line-height:1.3;");
                 itLabel.textContent = itemCounter + ". " + itName;
                 
-                var itInp = createElement("input", sInput + ";font-size:12px;padding:4px 8px;height:30px;");
-                itInp.placeholder = "Inherits default format rule above...";
+                var itTextarea = createElement("textarea", sTextarea + ";font-size:12px;padding:6px 8px;height:52px;resize:vertical;line-height:1.4;box-sizing:border-box;width:100%;");
+                itTextarea.placeholder = "Inherits default format rule above...";
                 if (aiInstructions.items && aiInstructions.items[key]) {
-                    itInp.value = aiInstructions.items[key];
+                    itTextarea.value = aiInstructions.items[key];
                 }
-                perItemInputs[key] = itInp;
+                perItemInputs[key] = itTextarea;
 
                 itemRow.appendChild(itLabel);
-                itemRow.appendChild(itInp);
+                itemRow.appendChild(itTextarea);
                 perItemContainer.appendChild(itemRow);
             });
         });
@@ -725,7 +725,7 @@
         var perItemAccordion = createAccordion("Per-Line-Item Format Overrides (" + itemCounter + " items)", perItemContainer, false);
         divInstr.appendChild(perItemAccordion.container);
 
-        var btnSaveInstr = createElement("button", "align-self:flex-start;padding:6px 14px;background:#059669;color:white;border:none;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:opacity 0.15s;");
+        var btnSaveInstr = createElement("button", "align-self:flex-start;padding:8px 16px;background:#059669;color:white;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:opacity 0.15s;margin-top:4px;");
         btnSaveInstr.innerHTML = "<span>💾</span> <span>Save Instructions to Database</span>";
         addListener(btnSaveInstr, "click", function(){
             var perItemObj = {};
@@ -735,7 +735,7 @@
             });
             btnSaveInstr.disabled = true;
             btnSaveInstr.textContent = "Saving...";
-            saveInstructionsToDb(txtGenInstr.value.trim(), inpDefItem.value.trim(), perItemObj).finally(function(){
+            saveInstructionsToDb(txtGenInstr.value.trim(), txtDefItem.value.trim(), perItemObj).finally(function(){
                 btnSaveInstr.disabled = false;
                 btnSaveInstr.innerHTML = "<span>💾</span> <span>Save Instructions to Database</span>";
             });
@@ -746,7 +746,7 @@
         pBody.appendChild(instrAccordion.container);
 
         // --- Section 3: Analysis Results ---
-        var divOutput = createElement("div", "font-size:13px;line-height:1.6;color:#1e293b;user-select:text");
+        var divOutput = createElement("div", "font-size:13px;line-height:1.6;color:#1e293b;user-select:text;overflow:visible;height:auto;");
         var resPlaceholder = createElement("div");
         resPlaceholder.innerHTML = "<div style='color:#94a3b8;font-style:italic;padding:18px;text-align:center;background:#f8fafc;border-radius:6px;border:1px dashed #cbd5e1'>Analysis results and feedback audit will appear here after clicking Generate Analysis...</div>";
         divOutput.appendChild(resPlaceholder);
@@ -754,7 +754,7 @@
         pBody.appendChild(outputAccordion.container);
 
         // Footer
-        var pFooter = createElement("div", sFooter);
+        var pFooter = createElement("div", sFooter + "; flex-shrink:0;");
         var pBtnCancel = createElement("button", sBtnCancel);
         pBtnCancel.textContent = "Close";
         addListener(pBtnCancel, "click", function(){ pOverlay.remove(); });
@@ -790,7 +790,7 @@
                 var selOpt = (s.options && s.options[s.selIndex]) ? s.options[s.selIndex] : (s.options && s.options[0]);
                 var draftFb = (s.text || (s.domTextarea && s.domTextarea.value) || "").trim();
                 
-                var customFormat = (perItemInputs[k] && perItemInputs[k].value.trim()) || (aiInstructions.items && aiInstructions.items[k]) || inpDefItem.value.trim() || DEFAULT_ITEM_INSTRUCTION;
+                var customFormat = (perItemInputs[k] && perItemInputs[k].value.trim()) || (aiInstructions.items && aiInstructions.items[k]) || txtDefItem.value.trim() || DEFAULT_ITEM_INSTRUCTION;
 
                 var optionsSummary = (s.options || []).map(function(o){
                     return o.label + (o.points !== undefined ? " (" + o.points + " pts)" : "");
@@ -1020,16 +1020,16 @@
 
     // --- Chat Checker Modal ---
     var showChatCheckerModal = function() {
-        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:transparent; pointer-events:none; align-items:center");
-        var pModal = createElement("div", sModal + "; height:auto; max-height:85vh; width:580px; cursor:default; user-select:auto; box-shadow:0 16px 40px rgba(0,0,0,0.28); border:1px solid #cbd5e1;");
-        var pHeader = createElement("div", sHeader + "; cursor:move");
+        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:transparent; pointer-events:none; display:flex; justify-content:center; align-items:flex-start; padding-top:20px; padding-bottom:20px; overflow-y:auto;");
+        var pModal = createElement("div", "background:white;border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,0.28);width:90%;max-width:600px;height:82vh;max-height:820px;display:flex;flex-direction:column;cursor:default;user-select:auto;pointer-events:auto;position:relative;border:1px solid #cbd5e1;overflow:hidden;margin-bottom:20px;");
+        var pHeader = createElement("div", sHeader + "; cursor:move; border-radius:8px 8px 0 0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 18px; flex-shrink:0;");
         pHeader.innerHTML = "<span>💬 Chat Checker</span>";
         var pClose = createElement("span", "cursor:pointer;font-size:18px;color:#94a3b8");
         pClose.textContent = "×";
         addListener(pClose, "click", function(){ pOverlay.remove(); });
         pHeader.appendChild(pClose);
 
-        var pBody = createElement("div", "padding:18px 20px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;user-select:text");
+        var pBody = createElement("div", "padding:18px 20px;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:12px;user-select:text;scrollbar-width:thin;scrollbar-color:#94a3b8 #f1f5f9;");
 
         var divInputs = createElement("div", "display:flex;flex-direction:column;gap:12px");
         var grpTranscript = createElement("div");
@@ -2650,10 +2650,10 @@
     var showSettingsModal = function(isMandatory) {
         if (document.getElementById('qa-settings-modal-overlay')) return;
 
-        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:transparent; pointer-events:none; align-items:center");
+        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:transparent; pointer-events:none; display:flex; justify-content:center; align-items:flex-start; padding-top:20px; padding-bottom:20px; overflow-y:auto;");
         pOverlay.id = "qa-settings-modal-overlay";
-        var pModal = createElement("div", sModal + "; height:auto; max-height:85vh; width:500px; cursor:default; user-select:auto; box-shadow:0 20px 40px rgba(0,0,0,0.3); border:1px solid #cbd5e1;");
-        var pHeader = createElement("div", sHeader + "; cursor:grab; border-radius:8px 8px 0 0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 18px;");
+        var pModal = createElement("div", "background:white;border-radius:8px;box-shadow:0 20px 40px rgba(0,0,0,0.3);width:90%;max-width:520px;height:auto;max-height:85vh;display:flex;flex-direction:column;cursor:default;user-select:auto;pointer-events:auto;position:relative;border:1px solid #cbd5e1;overflow:hidden;margin-bottom:20px;");
+        var pHeader = createElement("div", sHeader + "; cursor:grab; border-radius:8px 8px 0 0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 18px; flex-shrink:0;");
         pHeader.innerHTML = "<span style='font-size:15px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;'>⚙️ <span>Configure Settings</span></span>";
 
         var pClose = createElement("span", "cursor:pointer;font-size:20px;color:#94a3b8;line-height:1;font-weight:400;padding:2px 6px;border-radius:4px;transition:all 0.15s");
@@ -2671,7 +2671,7 @@
 
         makeDraggable(pModal, pHeader);
 
-        var pBody = createElement("div", "padding:18px 20px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;");
+        var pBody = createElement("div", "padding:18px 20px;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:14px;scrollbar-width:thin;scrollbar-color:#94a3b8 #f1f5f9;");
 
         if (isMandatory && !QA_EMAIL) {
             var noticeBox = createElement("div", "background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:10px 12px;color:#1e40af;font-size:12px;line-height:1.4;display:flex;align-items:flex-start;gap:8px;");
