@@ -2830,6 +2830,11 @@
             GEMINI_API_KEY = inpKey.value.trim();
             GEMINI_MODEL = selModel.value.trim() || DEFAULT_GEMINI_MODEL;
 
+            if (matchedUser) {
+                matchedUser.geminiApiKey = GEMINI_API_KEY;
+                matchedUser.geminiModel = GEMINI_MODEL;
+            }
+
             storage.set('qa_email', QA_EMAIL);
             storage.set('gemini_key', GEMINI_API_KEY);
             storage.set('gemini_model', GEMINI_MODEL);
@@ -2851,11 +2856,36 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify(savePayload)
-            }).then(function(res){ return res.json(); }).catch(function(){});
-
-            showToast("Settings saved!", false);
-            pOverlay.remove();
-            checkAndSyncData(true);
+            })
+            .then(function(res){ return res.json(); })
+            .then(function(resData){
+                if (resData && !resData.success) {
+                    throw new Error(resData.message || resData.error || "Save failed");
+                }
+                showToast("Settings saved to database & profile!", false);
+                return idb.get('cached_payload').then(function(cached){
+                    if (cached) {
+                        cached.userGeminiApiKey = GEMINI_API_KEY;
+                        cached.userGeminiModel = GEMINI_MODEL;
+                        if (cached.users && Array.isArray(cached.users)) {
+                            var uInCached = cached.users.find(function(u){ return (u.email || '').toLowerCase() === QA_EMAIL.toLowerCase(); });
+                            if (uInCached) {
+                                uInCached.geminiApiKey = GEMINI_API_KEY;
+                                uInCached.geminiModel = GEMINI_MODEL;
+                            }
+                        }
+                        return idb.set('cached_payload', cached);
+                    }
+                });
+            })
+            .catch(function(err){
+                console.warn("Save remote settings notice: " + err.message);
+                showToast("Saved locally (offline: " + err.message + ")", false);
+            })
+            .finally(function(){
+                pOverlay.remove();
+                checkAndSyncData(true);
+            });
         });
 
         pFooter.appendChild(pBtnSave);
@@ -2944,6 +2974,7 @@
                     var lastTs = storage.get('last_sync_ts', '');
                     var currentTs = syncData.rubricsTimestamp + "_" +
                                     syncData.feedbackTimestamp + "_" +
+                                    (syncData.usersTimestamp || '') + "_" +
                                     syncData.assignmentsTimestamp + "_" +
                                     (syncData.settingsTimestamp || '');
 
