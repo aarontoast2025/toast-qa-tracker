@@ -2245,7 +2245,7 @@
             globalUsers.forEach(function(u){
                 var opt = createElement("option");
                 opt.value = u.email;
-                var uName = u.name || formatEmailToName(u.email);
+                var uName = (u.firstName && u.lastName) ? (u.firstName + ' ' + u.lastName) : (u.name || formatEmailToName(u.email));
                 opt.textContent = uName + " (" + u.email + ")";
                 if (QA_EMAIL && u.email.toLowerCase() === QA_EMAIL.toLowerCase()) {
                     opt.selected = true;
@@ -2318,17 +2318,20 @@
         grpKey.appendChild(keyHelp);
         pBody.appendChild(grpKey);
 
-        // When QA Account changes in dropdown: update API key if known
+        // When QA Account changes in dropdown: update API key & name if known
         addListener(selEmail, "change", function(){
             var chosenEmail = selEmail.value.trim().toLowerCase();
             if (chosenEmail && globalUsers && globalUsers.length > 0) {
                 var chosenUser = globalUsers.find(function(u){ return (u.email || '').toLowerCase() === chosenEmail; });
-                if (chosenUser && chosenUser.geminiApiKey) {
-                    inpKey.value = chosenUser.geminiApiKey;
-                    inpKey.readOnly = true;
-                    inpKey.style.background = "#f8fafc";
-                    btnEditKey.style.display = "inline-flex";
-                    btnEditKey.textContent = "✏️";
+                if (chosenUser) {
+                    if (chosenUser.firstName) qaFirstName = chosenUser.firstName;
+                    if (chosenUser.geminiApiKey) {
+                        inpKey.value = chosenUser.geminiApiKey;
+                        inpKey.readOnly = true;
+                        inpKey.style.background = "#f8fafc";
+                        btnEditKey.style.display = "inline-flex";
+                        btnEditKey.textContent = "✏️";
+                    }
                 }
             }
         });
@@ -2370,6 +2373,14 @@
             pBtnSave.textContent = "Saving...";
 
             QA_EMAIL = newEmail;
+            var matchedUser = globalUsers.find(function(u){ return (u.email || '').toLowerCase() === newEmail.toLowerCase(); });
+            if (matchedUser && matchedUser.firstName) {
+                qaFirstName = matchedUser.firstName;
+            } else if (matchedUser && matchedUser.name) {
+                qaFirstName = matchedUser.name.split(' ')[0];
+            } else {
+                qaFirstName = formatEmailToName(newEmail).split(' ')[0];
+            }
             GEMINI_API_KEY = inpKey.value.trim();
             GEMINI_MODEL = selModel.value.trim() || DEFAULT_GEMINI_MODEL;
 
