@@ -25,7 +25,7 @@
         }
     };
 
-    var API_BASE_URL = storage.get('api_url', DEFAULT_API_URL);
+    var API_BASE_URL = DEFAULT_API_URL;
     var API_TOKEN = storage.get('api_token', DEFAULT_API_TOKEN);
     var GEMINI_API_KEY = storage.get('gemini_key', '');
     var GEMINI_MODEL = storage.get('gemini_model', DEFAULT_GEMINI_MODEL);
@@ -40,7 +40,9 @@
     var globalAssignments = [];
     var selectedAssignmentId = "";
     var globalEvalTypes = [];
+    var globalGeminiModels = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'];
     var currentQaDisplayName = "";
+    var qaFirstName = "";
     var existingRecordId = null;
 
     // --- Styles ---
@@ -315,13 +317,41 @@
         loader.style.display = "none";
     };
 
-    var isDragging = false, startX = 0, startY = 0, initialX = 0, initialY = 0;
+    // --- Draggable Modal Helper ---
+    var makeDraggable = function(modalEl, headerEl) {
+        var isDragging = false, startX = 0, startY = 0, currentX = 0, currentY = 0;
+        addListener(headerEl, "mousedown", function(e){
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.textContent === '×' || (toolsContainer && (e.target === toolsContainer || toolsContainer.contains(e.target)))) return;
+            isDragging = true;
+            startX = e.clientX - currentX;
+            startY = e.clientY - currentY;
+            headerEl.style.cursor = "grabbing";
+        });
+        addListener(document, "mousemove", function(e){
+            if(isDragging) {
+                currentX = e.clientX - startX;
+                currentY = e.clientY - startY;
+                modalEl.style.transform = "translate(" + currentX + "px, " + currentY + "px)";
+            }
+        });
+        addListener(document, "mouseup", function(){
+            if(isDragging) {
+                isDragging = false;
+                headerEl.style.cursor = "grab";
+            }
+        });
+    };
+
     var header = createElement("div", sHeader);
     var headerTitle = createElement("span");
-    headerTitle.innerHTML = "🍞 <strong>Toast QA Tracker</strong>";
+    var updateHeaderTitle = function() {
+        var namePart = qaFirstName || (currentQaDisplayName ? currentQaDisplayName.split(' ')[0] : (QA_EMAIL ? formatEmailToName(QA_EMAIL).split(' ')[0] : ''));
+        headerTitle.innerHTML = "🍞 <strong>QA Tracker</strong>" + (namePart ? " - " + namePart : "");
+    };
+    updateHeaderTitle();
     header.appendChild(headerTitle);
 
-    var toolsContainer = createElement("div", "position:relative;display:flex;align-items:center;gap:8px");
+    var toolsContainer = createElement("div", "position:relative;display:flex;align-items:center;gap:6px");
 
     var createMenuItem = function(text, onClick, parentMenu) {
         var item = createElement("div");
@@ -337,10 +367,26 @@
         return item;
     };
 
+    var btnRefresh = createElement("span");
+    btnRefresh.textContent = "🔄";
+    btnRefresh.title = "Force Refresh Database";
+    btnRefresh.style.cssText = "cursor:pointer;font-size:16px;padding:4px 6px;border-radius:4px;transition:background 0.2s;user-select:none";
+    addListener(btnRefresh, "mouseenter", function(){ btnRefresh.style.background = "rgba(0,0,0,0.06)"; });
+    addListener(btnRefresh, "mouseleave", function(){ btnRefresh.style.background = "transparent"; });
+    addListener(btnRefresh, "click", function(e){
+        e.stopPropagation();
+        storage.set('last_sync_ts', '');
+        idb.delete('cached_payload').then(function(){
+            checkAndSyncData(true);
+        }).catch(function(){
+            checkAndSyncData(true);
+        });
+    });
+
     var btnAiTools = createElement("span");
     btnAiTools.textContent = "🛠️";
     btnAiTools.title = "AI Tools";
-    btnAiTools.style.cssText = "cursor:pointer;font-size:16px;padding:4px 6px;border-radius:4px;transition:background 0.2s";
+    btnAiTools.style.cssText = "cursor:pointer;font-size:16px;padding:4px 6px;border-radius:4px;transition:background 0.2s;user-select:none";
     addListener(btnAiTools, "mouseenter", function(){ btnAiTools.style.background = "rgba(0,0,0,0.06)"; });
     addListener(btnAiTools, "mouseleave", function(){ btnAiTools.style.background = "transparent"; });
 
@@ -350,12 +396,12 @@
     var btnTools = createElement("span");
     btnTools.textContent = "⚙️";
     btnTools.title = "Settings";
-    btnTools.style.cssText = "cursor:pointer;font-size:16px;padding:4px 6px;border-radius:4px;transition:background 0.2s";
+    btnTools.style.cssText = "cursor:pointer;font-size:16px;padding:4px 6px;border-radius:4px;transition:background 0.2s;user-select:none";
     addListener(btnTools, "mouseenter", function(){ btnTools.style.background = "rgba(0,0,0,0.06)"; });
     addListener(btnTools, "mouseleave", function(){ btnTools.style.background = "transparent"; });
 
     var toolsMenu = createElement("div");
-    toolsMenu.style.cssText = "position:absolute;top:100%;right:0;background:white;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,0.12);display:none;flex-direction:column;min-width:200px;z-index:100001;margin-top:6px;overflow:hidden";
+    toolsMenu.style.cssText = "position:absolute;top:100%;right:0;background:white;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,0.12);display:none;flex-direction:column;min-width:160px;z-index:100001;margin-top:6px;overflow:hidden";
 
     addListener(btnAiTools, "click", function(e){
         e.stopPropagation();
@@ -501,6 +547,7 @@
         pModal.appendChild(pFooter);
         pOverlay.appendChild(pModal);
         document.body.appendChild(pOverlay);
+        makeDraggable(pModal, pHeader);
     };
 
     // --- Chat Checker Modal ---
@@ -587,37 +634,22 @@
         pModal.appendChild(pFooter);
         pOverlay.appendChild(pModal);
         document.body.appendChild(pOverlay);
+        makeDraggable(pModal, pHeader);
     };
 
     // Hook options to aiToolsMenu
     aiToolsMenu.appendChild(createMenuItem("📝 Case Notes Checker", showCaseNotesCheckerModal, aiToolsMenu));
     aiToolsMenu.appendChild(createMenuItem("💬 Chat Checker", showChatCheckerModal, aiToolsMenu));
+    toolsMenu.appendChild(createMenuItem("⚙️ Configure", function(){ showSettingsModal(false); }, toolsMenu));
 
+    toolsContainer.appendChild(btnRefresh);
     toolsContainer.appendChild(btnAiTools);
     toolsContainer.appendChild(aiToolsMenu);
     toolsContainer.appendChild(btnTools);
     toolsContainer.appendChild(toolsMenu);
     header.appendChild(toolsContainer);
 
-    addListener(header, "mousedown", function(e){
-        if(e.target === header || e.target.parentNode === header || e.target === headerTitle || e.target.tagName === 'STRONG') {
-            isDragging = true;
-            startX = e.clientX - initialX;
-            startY = e.clientY - initialY;
-            header.style.cursor = "grabbing";
-        }
-    });
-    addListener(document, "mousemove", function(e){
-        if(isDragging) {
-            initialX = e.clientX - startX;
-            initialY = e.clientY - startY;
-            modal.style.transform = "translate(" + initialX + "px, " + initialY + "px)";
-        }
-    });
-    addListener(document, "mouseup", function(){
-        isDragging = false;
-        header.style.cursor = "grab";
-    });
+    makeDraggable(modal, header);
 
     var contentContainer = createElement("div", sContent);
 
@@ -932,6 +964,15 @@
 
     var scoreBadge = null;
     var updateLiveScore = function() {
+        if (!selectedAssignmentId && (!selAgent || !selAgent.value)) {
+            if (scoreBadge) {
+                scoreBadge.style.background = "#f1f5f9";
+                scoreBadge.style.color = "#475569";
+                scoreBadge.style.border = "1px solid #cbd5e1";
+                scoreBadge.innerHTML = "<span>Score: <strong>--</strong></span>";
+            }
+            return;
+        }
         var res = computeRubricScore();
         if (scoreBadge) {
             var bg = '#dcfce7', txt = '#15803d', border = '#86efac';
@@ -945,6 +986,31 @@
             scoreBadge.style.border = '1px solid ' + border;
             scoreBadge.innerHTML = '<span>Score: <strong>' + res.scoreStr + '%</strong></span>';
         }
+    };
+
+    // --- Empty State Placeholder (when no agent is selected) ---
+    var renderNoAgentSelectedPlaceholder = function() {
+        contentContainer.querySelectorAll('.rubric-section').forEach(function(el){ el.remove(); });
+        state = {};
+
+        var placeholderBox = createElement("div", "display:flex;flex-direction:column;align-items:center;justify-content:center;padding:44px 20px;text-align:center;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:8px;margin-top:8px;color:#64748b;user-select:none;");
+        placeholderBox.className = "rubric-section";
+
+        var iconEl = createElement("div", "font-size:36px;margin-bottom:8px;line-height:1;");
+        iconEl.textContent = "👤📋";
+
+        var titleEl = createElement("div", "font-size:15px;font-weight:700;color:#1e293b;margin-bottom:4px;");
+        titleEl.textContent = "Select an Agent First";
+
+        var descEl = createElement("div", "font-size:12px;color:#64748b;max-width:320px;line-height:1.4;");
+        descEl.textContent = "The evaluation rubric will load automatically once you choose an agent from the dropdown above.";
+
+        placeholderBox.appendChild(iconEl);
+        placeholderBox.appendChild(titleEl);
+        placeholderBox.appendChild(descEl);
+        contentContainer.appendChild(placeholderBox);
+
+        updateLiveScore();
     };
 
     // --- Form Rendering by Rubric Object ---
@@ -1220,12 +1286,18 @@
 
     // --- Switch Rubric when Assignment is Selected ---
     var switchRubricById = function(rubricId) {
-        if (!rubricId) return;
-        var found = allRubrics.find(function(r){ return String(r.id) === String(rubricId); });
+        if (!rubricId) {
+            renderRubric(allRubrics[0] || DEFAULT_FALLBACK_RUBRIC, globalFeedbackTags, globalFeedbackGeneral);
+            return;
+        }
+        var found = allRubrics.find(function(r){
+            return String(r.id) === String(rubricId) || String(r.name).toLowerCase() === String(rubricId).toLowerCase();
+        });
         if (found) {
             console.log("Switching to Rubric:", found.name, "(ID: " + rubricId + ")");
             renderRubric(found, globalFeedbackTags, globalFeedbackGeneral);
-            showToast("Switched to Rubric: " + found.name, false);
+        } else {
+            renderRubric(allRubrics[0] || DEFAULT_FALLBACK_RUBRIC, globalFeedbackTags, globalFeedbackGeneral);
         }
     };
 
@@ -1432,6 +1504,8 @@
             inpDuration.value = getCallDuration() || "";
             inpDateInteraction.value = getInteractionDateFromPage() || "";
             resetAniDropdown();
+
+            renderNoAgentSelectedPlaceholder();
         }
     };
 
@@ -1488,6 +1562,10 @@
 
     // --- Save to Google Sheets API ---
     var saveRecord = function() {
+        if (!selectedAssignmentId && (!selAgent || !selAgent.value)) {
+            showToast("Please select an Agent first!", true);
+            return Promise.reject(new Error("No agent selected"));
+        }
         if (!API_BASE_URL) {
             showToast("API URL not configured! Open ⚙️ Settings", true);
             showSettingsModal();
@@ -1949,6 +2027,11 @@
     };
 
     var handleGeneration = function(saveToDb) {
+        if (!selectedAssignmentId && (!selAgent || !selAgent.value)) {
+            showToast("Please select an Agent first!", true);
+            return;
+        }
+
         var activeBtn = saveToDb ? btnGenerate : btnGenerateOnly;
         var originalText = activeBtn.textContent;
         activeBtn.textContent = "Generating... ⏳";
@@ -2118,69 +2201,205 @@
     document.body.appendChild(overlay);
 
     // --- Settings Modal ---
-    var showSettingsModal = function() {
-        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:rgba(0,0,0,0.4); pointer-events:auto; align-items:center");
-        var pModal = createElement("div", sModal + "; height:auto; max-height:85vh; width:520px; cursor:default; user-select:auto");
-        var pHeader = createElement("div", sHeader + "; cursor:move");
-        pHeader.innerHTML = "<span>⚙️ Settings & Configuration</span>";
-        var pClose = createElement("span", "cursor:pointer;font-size:18px;color:#94a3b8");
+    var showSettingsModal = function(isMandatory) {
+        if (document.getElementById('qa-settings-modal-overlay')) return;
+
+        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:rgba(0,0,0,0.45); pointer-events:auto; align-items:center");
+        pOverlay.id = "qa-settings-modal-overlay";
+        var pModal = createElement("div", sModal + "; height:auto; max-height:85vh; width:500px; cursor:default; user-select:auto; box-shadow:0 20px 40px rgba(0,0,0,0.3); border:1px solid #cbd5e1;");
+        var pHeader = createElement("div", sHeader + "; cursor:grab; border-radius:8px 8px 0 0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 18px;");
+        pHeader.innerHTML = "<span style='font-size:15px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;'>⚙️ <span>Configure Settings</span></span>";
+
+        var pClose = createElement("span", "cursor:pointer;font-size:20px;color:#94a3b8;line-height:1;font-weight:400;padding:2px 6px;border-radius:4px;transition:all 0.15s");
         pClose.textContent = "×";
-        addListener(pClose, "click", function(){ pOverlay.remove(); });
+        addListener(pClose, "mouseenter", function(){ pClose.style.color = "#ef4444"; pClose.style.background = "#fee2e2"; });
+        addListener(pClose, "mouseleave", function(){ pClose.style.color = "#94a3b8"; pClose.style.background = "transparent"; });
+        addListener(pClose, "click", function(){
+            if (isMandatory && !QA_EMAIL) {
+                showToast("Please select your QA Account before continuing.", true);
+                return;
+            }
+            pOverlay.remove();
+        });
         pHeader.appendChild(pClose);
 
-        var pBody = createElement("div", "padding:20px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px");
+        makeDraggable(pModal, pHeader);
 
-        var grpApi = createElement("div");
-        grpApi.appendChild(createElement("label", sLabel)).textContent = "Apps Script API Web App URL";
-        var inpApi = createElement("input", sInput);
-        inpApi.placeholder = "https://script.google.com/macros/s/.../exec";
-        inpApi.value = API_BASE_URL;
-        grpApi.appendChild(inpApi);
-        pBody.appendChild(grpApi);
+        var pBody = createElement("div", "padding:18px 20px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;");
 
+        if (isMandatory && !QA_EMAIL) {
+            var noticeBox = createElement("div", "background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:10px 12px;color:#1e40af;font-size:12px;line-height:1.4;display:flex;align-items:flex-start;gap:8px;");
+            noticeBox.innerHTML = "<span style='font-size:16px'>👋</span><div><strong>Welcome!</strong> Please select your QA Account below to load your assignments and settings.</div>";
+            pBody.appendChild(noticeBox);
+        }
+
+        // 1. QA Account Selector (dropdown with all users in globalUsers, with in-field icon 👤)
         var grpEmail = createElement("div");
-        grpEmail.appendChild(createElement("label", sLabel)).textContent = "Your Toast QA Email";
-        var inpEmail = createElement("input", sInput);
-        inpEmail.placeholder = "your.name@toasttab.com";
-        inpEmail.value = QA_EMAIL;
-        grpEmail.appendChild(inpEmail);
+        var lblEmail = createElement("label", sLabel);
+        lblEmail.innerHTML = "<span>QA Account</span> <span style='color:#ef4444'>*</span>";
+        grpEmail.appendChild(lblEmail);
+
+        var selEmail = createElement("select", sSelect);
+        selEmail.innerHTML = "<option value=''>Select your QA Account...</option>";
+        if (globalUsers && globalUsers.length > 0) {
+            globalUsers.forEach(function(u){
+                var opt = createElement("option");
+                opt.value = u.email;
+                var uName = u.name || formatEmailToName(u.email);
+                opt.textContent = uName + " (" + u.email + ")";
+                if (QA_EMAIL && u.email.toLowerCase() === QA_EMAIL.toLowerCase()) {
+                    opt.selected = true;
+                }
+                selEmail.appendChild(opt);
+            });
+        }
+        if (QA_EMAIL && !Array.from(selEmail.options).some(function(o){ return o.value.toLowerCase() === QA_EMAIL.toLowerCase(); })) {
+            var optCustom = createElement("option");
+            optCustom.value = QA_EMAIL;
+            optCustom.textContent = formatEmailToName(QA_EMAIL) + " (" + QA_EMAIL + ")";
+            optCustom.selected = true;
+            selEmail.appendChild(optCustom);
+        }
+
+        var wrapEmail = createIconFieldWrapper("👤", selEmail, true);
+        grpEmail.appendChild(wrapEmail);
         pBody.appendChild(grpEmail);
 
+        // 2. Gemini API Key (with 🔑 in-field icon and ✏️ unlock/edit button)
         var grpKey = createElement("div");
-        grpKey.appendChild(createElement("label", sLabel)).textContent = "Your Gemini API Key (from Google AI Studio)";
+        var lblKey = createElement("label", sLabel);
+        lblKey.textContent = "Your Gemini API Key (from Google AI Studio)";
+        grpKey.appendChild(lblKey);
+
         var inpKey = createElement("input", sInput);
         inpKey.type = "password";
-        inpKey.placeholder = "AIzaSy...";
+        inpKey.placeholder = "Paste your AIzaSy... key";
         inpKey.value = GEMINI_API_KEY;
-        grpKey.appendChild(inpKey);
+
+        var wrapKey = createElement("div", "position:relative;display:flex;align-items:center;width:100%;margin:0;");
+        var iconKey = createElement("span", "position:absolute;left:11px;pointer-events:none;font-size:13px;z-index:2;user-select:none;display:inline-flex;align-items:center;justify-content:center;");
+        iconKey.textContent = "🔑";
+
+        inpKey.style.paddingLeft = "36px";
+        inpKey.style.paddingRight = "36px";
+        inpKey.style.boxSizing = "border-box";
+        inpKey.style.width = "100%";
+        inpKey.style.height = "36px";
+        inpKey.style.margin = "0";
+
+        var btnEditKey = createElement("span", "position:absolute;right:10px;cursor:pointer;font-size:14px;user-select:none;z-index:3;opacity:0.75;padding:2px;display:none;");
+        btnEditKey.textContent = "✏️";
+        btnEditKey.title = "Click to edit/update API key";
+
+        addListener(btnEditKey, "mouseenter", function(){ btnEditKey.style.opacity = "1"; });
+        addListener(btnEditKey, "mouseleave", function(){ btnEditKey.style.opacity = "0.75"; });
+        addListener(btnEditKey, "click", function(){
+            inpKey.readOnly = false;
+            inpKey.style.background = "#ffffff";
+            inpKey.type = "text";
+            btnEditKey.textContent = "🔓";
+            btnEditKey.title = "Unlocked for editing";
+            inpKey.focus();
+        });
+
+        if (GEMINI_API_KEY) {
+            inpKey.readOnly = true;
+            inpKey.style.background = "#f8fafc";
+            btnEditKey.style.display = "inline-flex";
+        }
+
+        wrapKey.appendChild(iconKey);
+        wrapKey.appendChild(inpKey);
+        wrapKey.appendChild(btnEditKey);
+        grpKey.appendChild(wrapKey);
+
+        var keyHelp = createElement("div", "font-size:11px;color:#94a3b8;margin-top:3px;");
+        keyHelp.textContent = "Saved securely in the database under your user profile.";
+        grpKey.appendChild(keyHelp);
         pBody.appendChild(grpKey);
 
+        // When QA Account changes in dropdown: update API key if known
+        addListener(selEmail, "change", function(){
+            var chosenEmail = selEmail.value.trim().toLowerCase();
+            if (chosenEmail && globalUsers && globalUsers.length > 0) {
+                var chosenUser = globalUsers.find(function(u){ return (u.email || '').toLowerCase() === chosenEmail; });
+                if (chosenUser && chosenUser.geminiApiKey) {
+                    inpKey.value = chosenUser.geminiApiKey;
+                    inpKey.readOnly = true;
+                    inpKey.style.background = "#f8fafc";
+                    btnEditKey.style.display = "inline-flex";
+                    btnEditKey.textContent = "✏️";
+                }
+            }
+        });
+
+        // 3. Gemini Model Selector (dropdown populated from globalGeminiModels, in-field icon 🤖)
         var grpModel = createElement("div");
         grpModel.appendChild(createElement("label", sLabel)).textContent = "Gemini Model";
-        var inpModel = createElement("input", sInput);
-        inpModel.value = GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
-        grpModel.appendChild(inpModel);
+
+        var selModel = createElement("select", sSelect);
+        var modelsToUse = (globalGeminiModels && globalGeminiModels.length > 0) ? globalGeminiModels : ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+        modelsToUse.forEach(function(m){
+            var opt = createElement("option");
+            opt.value = m;
+            opt.textContent = m;
+            if (m === (GEMINI_MODEL || DEFAULT_GEMINI_MODEL)) {
+                opt.selected = true;
+            }
+            selModel.appendChild(opt);
+        });
+
+        var wrapModel = createIconFieldWrapper("🤖", selModel, true);
+        grpModel.appendChild(wrapModel);
         pBody.appendChild(grpModel);
 
+        // Footer
         var pFooter = createElement("div", sFooter);
         var pBtnSave = createElement("button", sBtnGenerate);
         pBtnSave.textContent = "Save Settings";
-        addListener(pBtnSave, "click", function(){
-            API_BASE_URL = inpApi.value.trim();
-            QA_EMAIL = inpEmail.value.trim();
-            GEMINI_API_KEY = inpKey.value.trim();
-            GEMINI_MODEL = inpModel.value.trim() || DEFAULT_GEMINI_MODEL;
+        pBtnSave.style.cssText = "padding:8px 18px;border:none;background:#2563eb;color:white;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600;box-shadow:0 1px 3px rgba(37,99,235,0.3);";
 
-            storage.set('api_url', API_BASE_URL);
+        addListener(pBtnSave, "click", function(){
+            var newEmail = selEmail.value.trim();
+            if (!newEmail) {
+                showToast("Please select your QA Account.", true);
+                return;
+            }
+
+            pBtnSave.disabled = true;
+            pBtnSave.textContent = "Saving...";
+
+            QA_EMAIL = newEmail;
+            GEMINI_API_KEY = inpKey.value.trim();
+            GEMINI_MODEL = selModel.value.trim() || DEFAULT_GEMINI_MODEL;
+
             storage.set('qa_email', QA_EMAIL);
             storage.set('gemini_key', GEMINI_API_KEY);
             storage.set('gemini_model', GEMINI_MODEL);
-
             storage.set('last_sync_ts', '');
-            showToast("Settings saved! Syncing...", false);
+
+            updateHeaderTitle();
+
+            // Save to backend database for persistence
+            var savePayload = {
+                action: 'save_user_gemini_config',
+                token: API_TOKEN,
+                qaEmail: QA_EMAIL,
+                geminiApiKey: GEMINI_API_KEY,
+                geminiModel: GEMINI_MODEL
+            };
+
+            fetch(API_BASE_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(savePayload)
+            }).then(function(res){ return res.json(); }).catch(function(){});
+
+            showToast("Settings saved!", false);
             pOverlay.remove();
-            if (API_BASE_URL) checkAndSyncData(true);
+            checkAndSyncData(true);
         });
+
         pFooter.appendChild(pBtnSave);
 
         pModal.appendChild(pHeader);
@@ -2189,16 +2408,6 @@
         pOverlay.appendChild(pModal);
         document.body.appendChild(pOverlay);
     };
-
-    toolsMenu.appendChild(createMenuItem("⚙️ Configure API & Gemini Key", showSettingsModal, toolsMenu));
-    toolsMenu.appendChild(createMenuItem("🔄 Force Refresh Database", function(){
-        storage.set('last_sync_ts', '');
-        idb.delete('cached_payload').then(function(){
-            checkAndSyncData(true);
-        }).catch(function(){
-            checkAndSyncData(true);
-        });
-    }, toolsMenu));
 
     // --- Sync & Initialization Logic (Bulk Processing & Local IndexedDB Storage) ---
     var checkAndSyncData = function(forceRefresh) {
@@ -2216,11 +2425,25 @@
                     globalEvalTypes = cached.evalTypes;
                     updateEvalTypesDropdown();
                 }
+                if (cached.geminiModels && Array.isArray(cached.geminiModels) && cached.geminiModels.length > 0) {
+                    globalGeminiModels = cached.geminiModels;
+                }
+                if (cached.userGeminiApiKey && !GEMINI_API_KEY) {
+                    GEMINI_API_KEY = cached.userGeminiApiKey;
+                    storage.set('gemini_key', GEMINI_API_KEY);
+                }
+                if (cached.userGeminiModel) {
+                    GEMINI_MODEL = cached.userGeminiModel;
+                    storage.set('gemini_model', GEMINI_MODEL);
+                }
                 if (cached.qaName) currentQaDisplayName = cached.qaName;
+                if (cached.qaFirstName) qaFirstName = cached.qaFirstName;
+                updateHeaderTitle();
 
-                currentRubric = allRubrics[0] || DEFAULT_FALLBACK_RUBRIC;
-                renderRubric(currentRubric, globalFeedbackTags, globalFeedbackGeneral);
-                autoSelectAssignmentAndDate();
+                var matchedAuto = autoSelectAssignmentAndDate();
+                if (!matchedAuto || !selAgent.value) {
+                    renderNoAgentSelectedPlaceholder();
+                }
                 updateLiveScore();
                 hideLoading();
             }
@@ -2228,10 +2451,9 @@
             if (!API_BASE_URL) {
                 hideLoading();
                 if (!cached) {
-                    renderRubric(DEFAULT_FALLBACK_RUBRIC, [], []);
-                    autoSelectAssignmentAndDate();
+                    renderNoAgentSelectedPlaceholder();
                 }
-                showToast("Please enter your Apps Script API URL in ⚙️ Settings", false);
+                showToast("API URL error", true);
                 return;
             }
 
@@ -2254,6 +2476,9 @@
                     if (!forceRefresh && cached && lastTs === currentTs) {
                         console.log("Toast QA Tool: Cache is up-to-date (0 sheet reads!).");
                         hideLoading();
+                        if (!QA_EMAIL) {
+                            showSettingsModal(true);
+                        }
                         return;
                     }
 
@@ -2281,23 +2506,42 @@
                                 globalEvalTypes = data.evalTypes;
                                 updateEvalTypesDropdown();
                             }
+                            if (data.geminiModels && Array.isArray(data.geminiModels) && data.geminiModels.length > 0) {
+                                globalGeminiModels = data.geminiModels;
+                            }
+                            if (data.userGeminiApiKey) {
+                                GEMINI_API_KEY = data.userGeminiApiKey;
+                                storage.set('gemini_key', GEMINI_API_KEY);
+                            }
+                            if (data.userGeminiModel) {
+                                GEMINI_MODEL = data.userGeminiModel;
+                                storage.set('gemini_model', GEMINI_MODEL);
+                            }
                             if (data.qaName) currentQaDisplayName = data.qaName;
+                            if (data.qaFirstName) qaFirstName = data.qaFirstName;
+                            updateHeaderTitle();
 
-                            // If this was an initial load without cache, render the rubric and auto-select
                             if (!cached) {
-                                currentRubric = allRubrics[0] || DEFAULT_FALLBACK_RUBRIC;
-                                renderRubric(currentRubric, globalFeedbackTags, globalFeedbackGeneral);
-                                autoSelectAssignmentAndDate();
-                                updateLiveScore();
+                                var matchedAuto = autoSelectAssignmentAndDate();
+                                if (!matchedAuto || !selAgent.value) {
+                                    renderNoAgentSelectedPlaceholder();
+                                }
                             } else {
-                                // Already rendered from cache: refresh dropdown cleanly without disrupting user
                                 updateAgentDropdown();
+                                if (!selAgent.value) {
+                                    renderNoAgentSelectedPlaceholder();
+                                }
                             }
                             showToast("Bulk synced with latest Google Sheets data!", false);
+
+                            if (!QA_EMAIL) {
+                                showSettingsModal(true);
+                            }
                         })
                         .catch(function(err){
                             console.error(err);
                             showToast("Could not fetch latest sheets data: " + err.message, true);
+                            if (!QA_EMAIL) showSettingsModal(true);
                         })
                         .finally(function(){ hideLoading(); });
                 })
@@ -2305,10 +2549,10 @@
                     console.error(err);
                     hideLoading();
                     if (!cached) {
-                        renderRubric(DEFAULT_FALLBACK_RUBRIC, [], []);
-                        autoSelectAssignmentAndDate();
+                        renderNoAgentSelectedPlaceholder();
                         showToast("Loaded Toast QA Rubric (offline mode)", false);
                     }
+                    if (!QA_EMAIL) showSettingsModal(true);
                 });
         });
     };
