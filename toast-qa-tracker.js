@@ -44,8 +44,7 @@
     var currentQaDisplayName = "";
     var qaFirstName = "";
     var existingRecordId = null;
-
-    var DEFAULT_GENERAL_INSTRUCTION = "Write feedback in concise, objective, and action-oriented paragraphs. Each feedback must be written as a complete paragraph in professional English. Incorporate specific context from the interaction (e.g. customer statements, troubleshooting steps, tool names, reference IDs, cutoff times). Rephrase and enrich the QA's draft feedback while strictly preserving the QA's rating direction (e.g. met, excelled, or missed). Never include meta-instructions, prefixes like 'Feedback:', or mention formatting guidelines in the output.";
+    var DEFAULT_GENERAL_INSTRUCTION = "Write feedback in concise, objective, and action-oriented paragraphs. Each feedback must be written as a complete paragraph in professional English. Incorporate specific context from the interaction (e.g. customer statements, troubleshooting steps, tool names, reference IDs, cutoff times). Rephrase and enrich the QA's draft feedback while strictly preserving the QA's rating direction (e.g. met, excelled, or missed). Always ground the feedback in what actually occurred in the interaction without inventing or hallucinating scenarios. If the QA marks a standard as met, affirm how the standard was achieved based on real interaction events. Never include meta-instructions, prefixes like 'Feedback:', or mention formatting guidelines in the output.";
 
     var aiInstructions = {
         general: storage.get('ai_gen_instr', DEFAULT_GENERAL_INSTRUCTION),
@@ -808,39 +807,29 @@
                 JSON.stringify(itemsPayload, null, 2) + "\n\n" +
                 "=== GENERAL INSTRUCTIONS ===\n" + genPrompt + "\n\n" +
                 "=== STRICT GENERATION RULES ===\n" +
-                "1. ANALYSIS & AUDIT (OVERALL INTERACTION):\n" +
+                "1. SUMMARY OF INTERACTION:\n" +
                 "   - summary: 1-2 concise sentences summarizing the customer's core inquiry and resolution.\n" +
-                "   - strengths: Array of 2-3 specific positive agent actions.\n" +
-                "   - opportunities: Array of 2-3 coaching or missed process opportunities.\n" +
-                "   - caseNotesReview: Object with accuracy, completeness, formatting, and recommended revisedNotes (if notes are provided).\n" +
                 "2. PROCESSED FEEDBACK PER LINE ITEM (IN 'feedbacks'):\n" +
                 "   - The QA Auditor's userSelectedRating is authoritative for this field.\n" +
                 "   - IF isCorrect is TRUE (or userSelectedRating is 'Quality standard met' / 'Quality standard excelled'):\n" +
                 "     * The processed feedback MUST be positive and affirming, validating what the advocate did well.\n" +
+                "     * FACT-GROUNDING WITHOUT INVENTING SCENARIOS: Always ground the feedback in the true events of the interaction transcript. If the QA marks a standard as met, affirm how the standard was achieved based on real interaction events without inventing or hallucinating scenarios that did not occur.\n" +
                 "     * Rephrase, refine, and enrich the QA's draftFeedback by incorporating specific context from the interaction (customer issue, troubleshooting steps, tool names, reference IDs, cutoff times).\n" +
                 "     * NEVER write negative criticism or contradict the QA's rating direction in this field.\n" +
                 "   - IF isCorrect is FALSE (or userSelectedRating is 'Quality standard missed'):\n" +
                 "     * The processed feedback MUST be constructive coaching, pinpointing the specific gap or missing process.\n" +
                 "     * Incorporate specific details from the interaction.\n" +
-                "   - IF draftFeedback is blank/empty, generate a professional feedback paragraph confirming why the rating standard was achieved or missed according to userSelectedRating.\n" +
+                "   - IF draftFeedback is blank/empty, generate a professional feedback paragraph confirming why the rating standard was achieved or missed according to userSelectedRating and interaction facts.\n" +
                 "   - PARAGRAPH FORMAT: Every feedback entry MUST be written as a complete, cohesive paragraph in professional English. Do NOT use bullet points or meta-prefixes like 'Feedback:'.\n" +
                 "3. AI DISSENTING OBSERVATIONS FOR RECONSIDERATION (IN 'lineItemReconsiderations'):\n" +
                 "   - Perform an independent audit of the interaction transcript and notes against the QA guidelines.\n" +
-                "   - If the evidence in the interaction indicates a different standard than the QA's userSelectedRating (e.g., the QA marked 'Quality standard met' for case notes, but the notes omitted critical details; or vice versa):\n" +
+                "   - If the evidence in the interaction indicates a standard DIFFERENT from the QA's userSelectedRating:\n" +
                 "     * DO NOT replace or contradict the processed feedback in rule 2.\n" +
                 "     * INSTEAD, record your independent finding under that item's key in 'lineItemReconsiderations'. Provide the suggestedRating and detailed reasoning.\n" +
                 "     * If you agree with the QA's rating, do NOT include the item in 'lineItemReconsiderations'.\n\n" +
                 "Return ONLY a strictly valid JSON object matching this schema:\n" +
                 "{\n" +
                 "  \"summary\": \"...\",\n" +
-                "  \"strengths\": [\"...\"],\n" +
-                "  \"opportunities\": [\"...\"],\n" +
-                "  \"caseNotesReview\": {\n" +
-                "    \"accuracy\": \"...\",\n" +
-                "    \"completeness\": \"...\",\n" +
-                "    \"formatting\": \"...\",\n" +
-                "    \"revisedNotes\": \"...\"\n" +
-                "  },\n" +
                 "  \"feedbacks\": {\n" +
                 "    \"0:0\": \"...\"\n" +
                 "  },\n" +
@@ -908,50 +897,6 @@
                         sumCard.appendChild(sumHeader);
                         sumCard.appendChild(sumTxt);
                         resDiv.appendChild(sumCard);
-                    }
-
-                    // Strengths & Opportunities
-                    var gridSO = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:10px;");
-                    if (data.strengths && data.strengths.length > 0) {
-                        var strCard = createElement("div", "background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px;");
-                        strCard.innerHTML = "<div style='font-weight:700;color:#15803d;font-size:12px;margin-bottom:6px;'>🌟 Key Strengths</div><ul style='margin:0;padding-left:16px;font-size:12px;color:#1e293b;'>" + data.strengths.map(function(s){ return "<li style='margin-bottom:4px;'>" + s + "</li>"; }).join("") + "</ul>";
-                        gridSO.appendChild(strCard);
-                    }
-                    if (data.opportunities && data.opportunities.length > 0) {
-                        var oppCard = createElement("div", "background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px;");
-                        oppCard.innerHTML = "<div style='font-weight:700;color:#b45309;font-size:12px;margin-bottom:6px;'>💡 Coaching Opportunities</div><ul style='margin:0;padding-left:16px;font-size:12px;color:#1e293b;'>" + data.opportunities.map(function(o){ return "<li style='margin-bottom:4px;'>" + o + "</li>"; }).join("") + "</ul>";
-                        gridSO.appendChild(oppCard);
-                    }
-                    if (gridSO.children.length > 0) resDiv.appendChild(gridSO);
-
-                    // Case Notes Audit
-                    if (data.caseNotesReview && typeof data.caseNotesReview === 'object') {
-                        var notesCard = createElement("div", "background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;");
-                        var notesHeader = createElement("div", "font-weight:700;color:#334155;font-size:12px;display:flex;justify-content:space-between;align-items:center;");
-                        notesHeader.innerHTML = "<span>🗒️ Case Notes Audit</span>";
-                        if (data.caseNotesReview.revisedNotes) {
-                            var btnCopyNotes = createElement("button", "padding:3px 8px;background:white;border:1px solid #cbd5e1;border-radius:4px;font-size:11px;color:#334155;cursor:pointer;font-weight:600;");
-                            btnCopyNotes.textContent = "Copy Revised Notes";
-                            addListener(btnCopyNotes, "click", function(){
-                                txtNotes.value = data.caseNotesReview.revisedNotes;
-                                showToast("Copied revised notes!", false);
-                            });
-                            notesHeader.appendChild(btnCopyNotes);
-                        }
-                        notesCard.appendChild(notesHeader);
-
-                        var auditGrid = createElement("div", "display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:11px;");
-                        auditGrid.innerHTML = "<div><strong>Accuracy:</strong> " + (data.caseNotesReview.accuracy || "Reviewed") + "</div>" +
-                                              "<div><strong>Completeness:</strong> " + (data.caseNotesReview.completeness || "Reviewed") + "</div>" +
-                                              "<div><strong>Formatting:</strong> " + (data.caseNotesReview.formatting || "Reviewed") + "</div>";
-                        notesCard.appendChild(auditGrid);
-
-                        if (data.caseNotesReview.revisedNotes) {
-                            var revBox = createElement("div", "background:white;border:1px solid #e2e8f0;border-radius:4px;padding:8px;font-size:12px;white-space:pre-wrap;color:#334155;");
-                            revBox.textContent = data.caseNotesReview.revisedNotes;
-                            notesCard.appendChild(revBox);
-                        }
-                        resDiv.appendChild(notesCard);
                     }
 
                     // Detailed Line Items Audit & AI Reconsiderations
@@ -2859,6 +2804,15 @@
                     if (chosenUser.geminiModel) {
                         selModel.value = chosenUser.geminiModel;
                     }
+                    if (chosenUser.aiInstructions) {
+                        var parsedUserInstr = typeof chosenUser.aiInstructions === 'object' ? chosenUser.aiInstructions : null;
+                        if (!parsedUserInstr && typeof chosenUser.aiInstructions === 'string' && chosenUser.aiInstructions.trim()) {
+                            try { parsedUserInstr = JSON.parse(chosenUser.aiInstructions); } catch(e) {}
+                        }
+                        if (parsedUserInstr && parsedUserInstr.general) {
+                            txtSettingsAiInstr.value = parsedUserInstr.general;
+                        }
+                    }
                 } else {
                     applyKeyToUI('');
                 }
@@ -2886,6 +2840,17 @@
         var wrapModel = createIconFieldWrapper("🤖", selModel, true);
         grpModel.appendChild(wrapModel);
         pBody.appendChild(grpModel);
+
+        // 4. AI Instructions (1 to 3 words title)
+        var grpAiInstr = createElement("div");
+        var lblAiInstr = createElement("label", sLabel);
+        lblAiInstr.textContent = "AI Instructions";
+        var txtSettingsAiInstr = createElement("textarea", sTextarea + "; height:75px; resize:vertical; font-size:12px; line-height:1.4;");
+        txtSettingsAiInstr.placeholder = "Enter global feedback guidelines, tone, context rules...";
+        txtSettingsAiInstr.value = aiInstructions.general || DEFAULT_GENERAL_INSTRUCTION;
+        grpAiInstr.appendChild(lblAiInstr);
+        grpAiInstr.appendChild(txtSettingsAiInstr);
+        pBody.appendChild(grpAiInstr);
 
         // Footer
         var pFooter = createElement("div", sFooter);
@@ -2915,9 +2880,14 @@
             GEMINI_API_KEY = inpKey.value.trim();
             GEMINI_MODEL = selModel.value.trim() || DEFAULT_GEMINI_MODEL;
 
+            var newInstr = txtSettingsAiInstr.value.trim() || DEFAULT_GENERAL_INSTRUCTION;
+            aiInstructions.general = newInstr;
+            storage.set('ai_gen_instr', newInstr);
+
             if (matchedUser) {
                 matchedUser.geminiApiKey = GEMINI_API_KEY;
                 matchedUser.geminiModel = GEMINI_MODEL;
+                matchedUser.aiInstructions = aiInstructions;
             }
 
             storage.set('qa_email', QA_EMAIL);
@@ -2957,6 +2927,7 @@
                             if (uInCached) {
                                 uInCached.geminiApiKey = GEMINI_API_KEY;
                                 uInCached.geminiModel = GEMINI_MODEL;
+                                uInCached.aiInstructions = aiInstructions;
                             }
                         }
                         return idb.set('cached_payload', cached);
