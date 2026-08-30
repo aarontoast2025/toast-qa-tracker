@@ -45,6 +45,55 @@
     var qaFirstName = "";
     var existingRecordId = null;
 
+    var DEFAULT_GENERAL_INSTRUCTION = "Write in professional, concise, objective, and action-oriented English. Incorporate specific context from the interaction (e.g. customer statements, troubleshooting steps, tool names, reference IDs, and cutoff times). Formulate the feedback directly to reflect whether the quality standard was excelled, met, or missed. Never include meta-instructions, prefixes like 'Feedback:', or mention formatting guidelines in the output.";
+    var DEFAULT_ITEM_INSTRUCTION = "Start with an active verb in past/present tense (e.g., Investigated, Reached, Verified, Provided, Identified, Advised). State specifically what the advocate did or what was missed.";
+
+    var aiInstructions = {
+        general: storage.get('ai_gen_instr', DEFAULT_GENERAL_INSTRUCTION),
+        defaultItem: storage.get('ai_item_instr', DEFAULT_ITEM_INSTRUCTION),
+        items: {}
+    };
+    try {
+        var savedItemInstr = storage.get('ai_per_item_instr', '{}');
+        aiInstructions.items = JSON.parse(savedItemInstr) || {};
+    } catch(e) { aiInstructions.items = {}; }
+
+    var saveInstructionsToDb = function(genText, defItemText, perItemObj) {
+        aiInstructions.general = genText !== undefined ? genText : aiInstructions.general;
+        aiInstructions.defaultItem = defItemText !== undefined ? defItemText : aiInstructions.defaultItem;
+        aiInstructions.items = perItemObj !== undefined ? perItemObj : aiInstructions.items;
+
+        storage.set('ai_gen_instr', aiInstructions.general);
+        storage.set('ai_item_instr', aiInstructions.defaultItem);
+        storage.set('ai_per_item_instr', JSON.stringify(aiInstructions.items));
+
+        if (!QA_EMAIL || !API_BASE_URL) {
+            showToast("Instructions saved locally!", false);
+            return Promise.resolve();
+        }
+
+        var payload = {
+            action: 'save_user_ai_instructions',
+            token: API_TOKEN,
+            qaEmail: QA_EMAIL,
+            aiInstructions: aiInstructions
+        };
+
+        return fetch(API_BASE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(payload)
+        }).then(function(res){ return res.json(); }).then(function(res){
+            if (res && res.success) {
+                showToast("Instructions saved to database!", false);
+            } else {
+                showToast("Instructions saved locally", false);
+            }
+        }).catch(function(err){
+            showToast("Instructions saved locally", false);
+        });
+    };
+
     // --- Styles ---
     var sOverlay = "position:fixed;top:0;left:0;right:0;bottom:0;background:transparent;display:flex;align-items:flex-start;justify-content:center;z-index:99999;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding-top:20px;overflow-y:auto;pointer-events:none";
     var sModal = "background:white;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.25);width:90%;max-width:580px;height:82vh;max-height:820px;overflow:hidden;display:flex;flex-direction:column;cursor:grab;user-select:none;margin-bottom:20px;pointer-events:auto;position:relative";
@@ -446,46 +495,265 @@
         return { container: container, body: aBody };
     };
 
-    // --- Case Notes Checker Modal ---
-    var showCaseNotesCheckerModal = function() {
-        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:rgba(0,0,0,0.4); pointer-events:auto; align-items:center");
-        var pModal = createElement("div", sModal + "; height:auto; max-height:85vh; width:580px; cursor:default; user-select:auto");
-        var pHeader = createElement("div", sHeader + "; cursor:move");
-        pHeader.innerHTML = "<span>📝 Case Notes Checker (Gemini AI)</span>";
-        var pClose = createElement("span", "cursor:pointer;font-size:18px;color:#94a3b8");
+    // Helper to wrap input/select with an in-field icon (uniform 36px height, margin 0, left padding 36px)
+    var createIconFieldWrapper = function(icon, element, fullWidth) {
+        var wrap = createElement("div");
+        wrap.style.cssText = "position:relative;display:flex;align-items:center;width:100%;margin:0;" + (fullWidth ? "grid-column:1 / -1;" : "");
+
+        var iconEl = createElement("span");
+        iconEl.textContent = icon;
+        iconEl.style.cssText = "position:absolute;left:11px;pointer-events:none;font-size:13px;z-index:2;user-select:none;display:inline-flex;align-items:center;justify-content:center;";
+
+        element.style.paddingLeft = "36px";
+        element.style.boxSizing = "border-box";
+        element.style.width = "100%";
+        element.style.height = "36px";
+        element.style.paddingTop = "0";
+        element.style.paddingBottom = "0";
+        element.style.margin = "0";
+
+        wrap.appendChild(iconEl);
+        wrap.appendChild(element);
+        return wrap;
+    };
+
+    // --- Interaction Checker Modal ---
+    var showInteractionCheckerModal = function() {
+        if (document.getElementById('qa-interaction-checker-overlay')) return;
+
+        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:transparent; pointer-events:none; align-items:center");
+        pOverlay.id = "qa-interaction-checker-overlay";
+        var pModal = createElement("div", sModal + "; height:auto; max-height:88vh; width:620px; cursor:default; user-select:auto; box-shadow:0 16px 40px rgba(0,0,0,0.28); border:1px solid #cbd5e1;");
+        var pHeader = createElement("div", sHeader + "; cursor:grab; border-radius:8px 8px 0 0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 18px;");
+        pHeader.innerHTML = "<span style='font-size:15px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;'>📝 <span>Interaction Checker</span></span>";
+        var pClose = createElement("span", "cursor:pointer;font-size:20px;color:#94a3b8;line-height:1;font-weight:400;padding:2px 6px;border-radius:4px;transition:all 0.15s");
         pClose.textContent = "×";
+        addListener(pClose, "mouseenter", function(){ pClose.style.color = "#ef4444"; pClose.style.background = "#fee2e2"; });
+        addListener(pClose, "mouseleave", function(){ pClose.style.color = "#94a3b8"; pClose.style.background = "transparent"; });
         addListener(pClose, "click", function(){ pOverlay.remove(); });
         pHeader.appendChild(pClose);
 
-        var pBody = createElement("div", "padding:18px 20px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;user-select:text");
+        makeDraggable(pModal, pHeader);
 
-        // Input Accordion
-        var divInputs = createElement("div", "display:flex;flex-direction:column;gap:12px");
-        var grpSubject = createElement("div");
-        grpSubject.appendChild(createElement("label", sLabel)).textContent = "Subject Line";
+        var pBody = createElement("div", "padding:16px 20px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;user-select:text");
+
+        // --- Section 1: Input Data & Metadata ---
+        var divInputs = createElement("div", "display:flex;flex-direction:column;gap:10px");
+
+        // 1. Subject Line
         var inpSubject = createElement("input", sInput);
-        inpSubject.placeholder = "Enter case subject...";
-        grpSubject.appendChild(inpSubject);
-        divInputs.appendChild(grpSubject);
+        inpSubject.placeholder = "Subject Line";
+        if (txtIssue && txtIssue.value) inpSubject.value = txtIssue.value.trim();
+        var wrapSubject = createIconFieldWrapper("🏷️", inpSubject, true);
+        divInputs.appendChild(wrapSubject);
 
-        var grpNotes = createElement("div");
-        grpNotes.appendChild(createElement("label", sLabel)).textContent = "Advocate Case Notes";
-        var txtNotes = createElement("textarea", sTextarea + "; height:140px");
-        txtNotes.placeholder = "Paste advocate case notes here...";
-        grpNotes.appendChild(txtNotes);
-        divInputs.appendChild(grpNotes);
+        // 2. Description
+        var inpDescription = createElement("input", sInput);
+        inpDescription.placeholder = "Description";
+        var wrapDescription = createIconFieldWrapper("📄", inpDescription, true);
+        divInputs.appendChild(wrapDescription);
 
-        var inputAccordion = createAccordion("Input Data (Subject & Notes)", divInputs, true);
+        // 3. Advocate Case Notes (with in-field 🗒️ icon)
+        var wrapNotes = createElement("div", "position:relative;display:flex;align-items:flex-start;width:100%;margin:0;");
+        var icoNotes = createElement("span", "position:absolute;left:11px;top:10px;pointer-events:none;font-size:13px;z-index:2;user-select:none;");
+        icoNotes.textContent = "🗒️";
+        var txtNotes = createElement("textarea", sTextarea);
+        txtNotes.placeholder = "Advocate Case Notes";
+        txtNotes.style.cssText = "width:100%;border:1px solid #cbd5e1;border-radius:5px;padding:8px 12px 8px 36px;font-family:inherit;resize:vertical;height:100px;font-size:13px;box-sizing:border-box;margin:0;";
+        wrapNotes.appendChild(icoNotes);
+        wrapNotes.appendChild(txtNotes);
+        divInputs.appendChild(wrapNotes);
+
+        // 4. Transcript Source & Upload Bar
+        var uploadedTranscript = null;
+        var uploadedFileName = "";
+        var pageTranscript = extractTranscript();
+
+        var transcriptBar = createElement("div", "display:flex;align-items:center;justify-content:space-between;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;gap:8px;");
+        var transcriptStatus = createElement("div", "display:flex;align-items:center;gap:6px;font-size:12px;color:#475569;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;");
+        var fileUploadInput = createElement("input");
+        fileUploadInput.type = "file";
+        fileUploadInput.accept = ".txt,.vtt,.srt,.csv,.log";
+        fileUploadInput.style.display = "none";
+
+        var btnUpload = createElement("button", "padding:4px 10px;font-size:11px;font-weight:600;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;transition:all 0.15s");
+        btnUpload.innerHTML = "<span>📁</span> <span>Upload File</span>";
+        addListener(btnUpload, "mouseenter", function(){ btnUpload.style.background = "#dbeafe"; });
+        addListener(btnUpload, "mouseleave", function(){ btnUpload.style.background = "#eff6ff"; });
+        addListener(btnUpload, "click", function(e){ e.preventDefault(); fileUploadInput.click(); });
+
+        var updateTranscriptStatusUI = function() {
+            transcriptStatus.innerHTML = "";
+            if (uploadedTranscript) {
+                var words = uploadedTranscript.trim().split(/\s+/).filter(Boolean).length;
+                transcriptStatus.innerHTML = "<span>📁</span> <span style='font-weight:600;color:#1e293b;'>Uploaded: " + (uploadedFileName || "file.txt") + "</span> <span style='color:#64748b;'>(" + words + " words)</span>";
+                
+                var btnReset = createElement("span", "cursor:pointer;color:#ef4444;margin-left:6px;font-weight:600;font-size:11px;padding:2px 6px;border-radius:3px;background:#fee2e2;");
+                btnReset.textContent = "✕ Use Page";
+                btnReset.title = "Revert to page transcript";
+                addListener(btnReset, "click", function(e){
+                    e.stopPropagation();
+                    uploadedTranscript = null;
+                    uploadedFileName = "";
+                    fileUploadInput.value = "";
+                    updateTranscriptStatusUI();
+                });
+                transcriptStatus.appendChild(btnReset);
+            } else {
+                pageTranscript = extractTranscript();
+                var pWords = pageTranscript ? pageTranscript.trim().split(/\s+/).filter(Boolean).length : 0;
+                if (pWords > 0) {
+                    transcriptStatus.innerHTML = "<span>📄</span> <span style='color:#1e293b;font-weight:600;'>Page Transcript</span> <span style='color:#64748b;'>(" + pWords + " words detected)</span>";
+                } else {
+                    transcriptStatus.innerHTML = "<span>⚠️</span> <span style='color:#b45309;font-weight:500;'>No transcript found on page</span> <span style='color:#94a3b8;'>(Upload file to supply)</span>";
+                }
+            }
+        };
+
+        addListener(fileUploadInput, "change", function(e){
+            var file = e.target.files && e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(evt) {
+                uploadedTranscript = evt.target.result || "";
+                uploadedFileName = file.name;
+                updateTranscriptStatusUI();
+                showToast("Loaded transcript: " + file.name, false);
+            };
+            reader.onerror = function() {
+                showToast("Failed to read file", true);
+            };
+            reader.readAsText(file);
+        });
+
+        updateTranscriptStatusUI();
+        transcriptBar.appendChild(transcriptStatus);
+        transcriptBar.appendChild(btnUpload);
+        transcriptBar.appendChild(fileUploadInput);
+        divInputs.appendChild(transcriptBar);
+
+        // 5. Processing Scope & Interaction Type Indicator
+        var scopeBar = createElement("div", "display:flex;align-items:center;justify-content:space-between;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 12px;font-size:11px;color:#1e40af;");
+        var scopeTargetEl = createElement("div", "font-weight:600;display:flex;align-items:center;gap:4px;");
+        var scopeTypeEl = createElement("div", "color:#3b82f6;font-weight:500;display:flex;align-items:center;gap:4px;");
+
+        var updateScopeBarUI = function() {
+            var allKeys = Object.keys(state);
+            var checkedKeys = allKeys.filter(function(k){ return state[k] && state[k].checked; });
+            if (checkedKeys.length > 0) {
+                scopeTargetEl.innerHTML = "<span>🎯 Target:</span> <span style='color:#1d4ed8;'>" + checkedKeys.length + " checked line item(s)</span>";
+            } else {
+                var draftCount = allKeys.filter(function(k){ return state[k] && (state[k].text || (state[k].domTextarea && state[k].domTextarea.value)); }).length;
+                scopeTargetEl.innerHTML = "<span>🎯 Target:</span> <span style='color:#1d4ed8;'>All line items (" + (draftCount > 0 ? draftCount + " with draft" : "evaluating all") + ")</span>";
+            }
+
+            var curType = (selEvalType && selEvalType.value) ? selEvalType.value : "Standard";
+            var isChat = curType.toLowerCase().includes("chat");
+            scopeTypeEl.innerHTML = "<span>" + (isChat ? "💬 Live Chat" : "📞 Phone / Voice") + "</span> <span style='color:#60a5fa;'>(" + curType + ")</span>";
+        };
+        updateScopeBarUI();
+        scopeBar.appendChild(scopeTargetEl);
+        scopeBar.appendChild(scopeTypeEl);
+        divInputs.appendChild(scopeBar);
+
+        var inputAccordion = createAccordion("Input Data & Context", divInputs, true);
         pBody.appendChild(inputAccordion.container);
 
-        // Results Accordion
+        // --- Section 2: Instructions & Format Preferences ---
+        var divInstr = createElement("div", "display:flex;flex-direction:column;gap:12px");
+
+        var grpGenInstr = createElement("div");
+        var lblGenInstr = createElement("label", sLabel);
+        lblGenInstr.textContent = "General Instruction (Applies to all line items)";
+        var txtGenInstr = createElement("textarea", sTextarea + "; height:70px");
+        txtGenInstr.placeholder = "Enter global feedback guidelines, tone, context rules...";
+        txtGenInstr.value = aiInstructions.general || DEFAULT_GENERAL_INSTRUCTION;
+        grpGenInstr.appendChild(lblGenInstr);
+        grpGenInstr.appendChild(txtGenInstr);
+        divInstr.appendChild(grpGenInstr);
+
+        var grpDefItem = createElement("div");
+        var lblDefItem = createElement("label", sLabel);
+        lblDefItem.textContent = "Default Item Format Rule";
+        var inpDefItem = createElement("input", sInput);
+        inpDefItem.placeholder = "e.g. Start with an active verb (e.g., Investigated, Reached, Verified)...";
+        inpDefItem.value = aiInstructions.defaultItem || DEFAULT_ITEM_INSTRUCTION;
+        grpDefItem.appendChild(lblDefItem);
+        grpDefItem.appendChild(inpDefItem);
+        divInstr.appendChild(grpDefItem);
+
+        // Per-item override accordion
+        var perItemContainer = createElement("div", "display:flex;flex-direction:column;gap:8px");
+        var perItemInputs = {};
+
+        var rawSections = [];
+        if (currentRubric) {
+            if (Array.isArray(currentRubric.sections)) rawSections = currentRubric.sections;
+            else if (Array.isArray(currentRubric.structure)) rawSections = currentRubric.structure;
+            else if (typeof currentRubric.structure === 'string') {
+                try { rawSections = JSON.parse(currentRubric.structure); } catch(e) {}
+            }
+        }
+        if (rawSections.length === 0 && DEFAULT_FALLBACK_RUBRIC) {
+            rawSections = typeof DEFAULT_FALLBACK_RUBRIC.structure === 'string' ? JSON.parse(DEFAULT_FALLBACK_RUBRIC.structure) : (DEFAULT_FALLBACK_RUBRIC.sections || []);
+        }
+
+        var itemCounter = 0;
+        rawSections.forEach(function(sec, sIdx){
+            (sec.items || []).forEach(function(it, iIdx){
+                itemCounter++;
+                var key = sIdx + ":" + iIdx;
+                var itName = (it.question || it.shortName || it.short_name || it.text || ("Item " + itemCounter)).replace(/^\d+\.\s*/, "");
+                
+                var itemRow = createElement("div", "display:flex;flex-direction:column;gap:3px;padding:6px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;");
+                var itLabel = createElement("div", "font-size:11px;font-weight:600;color:#334155;");
+                itLabel.textContent = itemCounter + ". " + itName;
+                
+                var itInp = createElement("input", sInput + ";font-size:12px;padding:4px 8px;height:30px;");
+                itInp.placeholder = "Inherits default format rule above...";
+                if (aiInstructions.items && aiInstructions.items[key]) {
+                    itInp.value = aiInstructions.items[key];
+                }
+                perItemInputs[key] = itInp;
+
+                itemRow.appendChild(itLabel);
+                itemRow.appendChild(itInp);
+                perItemContainer.appendChild(itemRow);
+            });
+        });
+
+        var perItemAccordion = createAccordion("Per-Line-Item Format Overrides (" + itemCounter + " items)", perItemContainer, false);
+        divInstr.appendChild(perItemAccordion.container);
+
+        var btnSaveInstr = createElement("button", "align-self:flex-start;padding:6px 14px;background:#059669;color:white;border:none;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:opacity 0.15s;");
+        btnSaveInstr.innerHTML = "<span>💾</span> <span>Save Instructions to Database</span>";
+        addListener(btnSaveInstr, "click", function(){
+            var perItemObj = {};
+            Object.keys(perItemInputs).forEach(function(k){
+                var v = perItemInputs[k].value.trim();
+                if (v) perItemObj[k] = v;
+            });
+            btnSaveInstr.disabled = true;
+            btnSaveInstr.textContent = "Saving...";
+            saveInstructionsToDb(txtGenInstr.value.trim(), inpDefItem.value.trim(), perItemObj).finally(function(){
+                btnSaveInstr.disabled = false;
+                btnSaveInstr.innerHTML = "<span>💾</span> <span>Save Instructions to Database</span>";
+            });
+        });
+        divInstr.appendChild(btnSaveInstr);
+
+        var instrAccordion = createAccordion("⚙️ Output Instructions & Format Preferences", divInstr, false);
+        pBody.appendChild(instrAccordion.container);
+
+        // --- Section 3: Analysis Results ---
         var divOutput = createElement("div", "font-size:13px;line-height:1.6;color:#1e293b;user-select:text");
         var resPlaceholder = createElement("div");
-        resPlaceholder.innerHTML = "<div style='color:#94a3b8;font-style:italic;padding:18px;text-align:center;background:#f8fafc;border-radius:6px;border:1px dashed #cbd5e1'>Analysis results will appear here after clicking Generate...</div>";
+        resPlaceholder.innerHTML = "<div style='color:#94a3b8;font-style:italic;padding:18px;text-align:center;background:#f8fafc;border-radius:6px;border:1px dashed #cbd5e1'>Analysis results and feedback audit will appear here after clicking Generate Analysis...</div>";
         divOutput.appendChild(resPlaceholder);
-        var outputAccordion = createAccordion("Analysis Results", divOutput, true);
+        var outputAccordion = createAccordion("📊 Analysis Results", divOutput, true);
         pBody.appendChild(outputAccordion.container);
 
+        // Footer
         var pFooter = createElement("div", sFooter);
         var pBtnCancel = createElement("button", sBtnCancel);
         pBtnCancel.textContent = "Close";
@@ -494,52 +762,253 @@
 
         var pBtnGen = createElement("button", sBtnGenerate);
         pBtnGen.textContent = "Generate Analysis";
+        
         addListener(pBtnGen, "click", function(){
-            var transcript = extractTranscript();
+            var transcript = uploadedTranscript || extractTranscript();
             var subject = inpSubject.value.trim();
+            var description = inpDescription.value.trim();
             var notes = txtNotes.value.trim();
+            var evalTypeVal = (selEvalType && selEvalType.value) ? selEvalType.value : "Standard";
+            var isChat = evalTypeVal.toLowerCase().includes("chat");
 
-            if(!notes) return showToast("Please paste the Case Notes first.", true);
+            if (!transcript && !notes) {
+                return showToast("Please provide either a transcript or Advocate Case Notes.", true);
+            }
 
             pBtnGen.disabled = true;
-            pBtnGen.textContent = "Analyzing... ⏳";
-            resPlaceholder.innerHTML = "<div style='padding:20px;text-align:center;color:#2563eb;font-weight:600'>🚀 Gemini is auditing case notes against transcript...</div>";
+            pBtnGen.textContent = "Generating... ⏳";
+            resPlaceholder.innerHTML = "<div style='padding:24px;text-align:center;color:#2563eb;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:10px;'><div>🚀 Gemini is evaluating interaction & generating targeted feedback...</div><div style='font-size:12px;color:#64748b;font-weight:normal;'>Processing transcript, case notes, rubric matrix, and formatting instructions in one pass</div></div>";
 
-            var prompt = "You are a QA specialist auditing support case notes against the interaction transcript.\n\n" +
-                         "=== TRANSCRIPT ===\n" + (transcript || "No transcript available on page.") + "\n\n" +
-                         "=== SUBJECT LINE ===\n" + (subject || "N/A") + "\n\n" +
-                         "=== CASE NOTES ===\n" + notes + "\n\n" +
-                         "Audit the case notes for:\n" +
-                         "1. ACCURACY: Did the agent correctly capture the issue and resolution?\n" +
-                         "2. COMPLETENESS: Are troubleshooting steps, internal checks, and customer responses thoroughly documented?\n" +
-                         "3. FORMATTING: Are notes clear and easy to follow?\n\n" +
-                         "Format your output clearly with:\n" +
-                         "SUMMARY: [1-2 concise sentences summarizing the issue]\n" +
-                         "STRENGTHS: [Key positive points]\n" +
-                         "COACHING / OPPORTUNITIES: [Specific gaps or improvements]\n" +
-                         "RECOMMENDED REVISED NOTES: [Polished version of the notes]";
+            // Determine Target Line Items based on Checkboxes
+            var allKeys = Object.keys(state);
+            var checkedKeys = allKeys.filter(function(k){ return state[k] && state[k].checked; });
+            var targetKeys = checkedKeys.length > 0 ? checkedKeys : allKeys;
 
-            callGemini(prompt, "You are an expert QA evaluator for customer support.")
-                .then(function(resText){
-                    resPlaceholder.innerHTML = "<div style='white-space:pre-wrap;padding:6px;user-select:text;cursor:text'>" + resText + "</div>";
-                    var sumMatch = resText.match(/SUMMARY:?\s*([\s\S]*?)(?:\n\n|STRENGTHS|$)/i);
-                    if (sumMatch && sumMatch[1] && txtIssue) {
-                        txtIssue.value = sumMatch[1].trim();
-                        txtIssue.dispatchEvent(new Event('input'));
+            var itemsPayload = targetKeys.map(function(k){
+                var s = state[k];
+                if (!s) return null;
+                var selOpt = (s.options && s.options[s.selIndex]) ? s.options[s.selIndex] : (s.options && s.options[0]);
+                var draftFb = (s.text || (s.domTextarea && s.domTextarea.value) || "").trim();
+                
+                var customFormat = (perItemInputs[k] && perItemInputs[k].value.trim()) || (aiInstructions.items && aiInstructions.items[k]) || inpDefItem.value.trim() || DEFAULT_ITEM_INSTRUCTION;
+
+                var optionsSummary = (s.options || []).map(function(o){
+                    return o.label + (o.points !== undefined ? " (" + o.points + " pts)" : "");
+                }).join(" | ");
+
+                return {
+                    key: k,
+                    question: s.question,
+                    section: s.sectionName || s.groupName,
+                    optionsAvailable: optionsSummary,
+                    userSelectedRating: selOpt ? selOpt.label : "N/A",
+                    draftFeedback: draftFb,
+                    itemFormatInstruction: customFormat
+                };
+            }).filter(Boolean);
+
+            var genPrompt = txtGenInstr.value.trim() || DEFAULT_GENERAL_INSTRUCTION;
+
+            var fullPrompt = "You are a senior QA Auditor and Feedback Coach for customer support interactions.\n\n" +
+                "=== INTERACTION CONTEXT ===\n" +
+                "Interaction Type: " + (isChat ? "Live Chat (Customer Messaging)" : "Phone Call (Voice Audio Transcript)") + "\n" +
+                "Evaluation Type: " + evalTypeVal + "\n" +
+                "Subject Line: " + (subject || "N/A") + "\n" +
+                "Description: " + (description || "N/A") + "\n" +
+                "Advocate Case Notes:\n" + (notes || "N/A") + "\n\n" +
+                "=== INTERACTION TRANSCRIPT ===\n" + (transcript || "No transcript available.") + "\n\n" +
+                "=== QA RUBRIC MATRIX & EVALUATION STATE ===\n" +
+                JSON.stringify(itemsPayload, null, 2) + "\n\n" +
+                "=== GENERAL INSTRUCTIONS ===\n" + genPrompt + "\n\n" +
+                "=== GENERATION RULES ===\n" +
+                "1. ANALYSIS & AUDIT:\n" +
+                "   - summary: 1-2 concise sentences summarizing the customer's core inquiry and resolution.\n" +
+                "   - strengths: Array of 2-3 specific positive agent actions.\n" +
+                "   - opportunities: Array of 2-3 coaching or missed process opportunities.\n" +
+                "   - caseNotesReview: Object with accuracy, completeness, formatting, and recommended revisedNotes.\n" +
+                "   - reconsiderations: Array of objects for any line item where the transcript evidence strongly indicates a standard DIFFERENT from the user's selected rating. Include key, question, userSelected, suggestedRating (e.g. Quality standard missed/excelled), and reasoning.\n" +
+                "2. TARGETED FEEDBACK PER LINE ITEM:\n" +
+                "   - For every item in the QA rubric array:\n" +
+                "     * IF draftFeedback is empty/blank: return empty string \"\" for that item's key. DO NOT fabricate feedback for un-evaluated items.\n" +
+                "     * IF draftFeedback is NOT empty: Generate a targeted, context-rich feedback string in English that references specific details from the interaction (customer words, advocate troubleshooting, tools used) and confirms why the rating standard was achieved or missed.\n" +
+                "     * Strictly adhere to itemFormatInstruction (e.g., starting with an active verb) WITHOUT quoting the format rule itself or adding meta-text.\n\n" +
+                "Return ONLY a strictly valid JSON object matching this schema:\n" +
+                "{\n" +
+                "  \"summary\": \"...\",\n" +
+                "  \"strengths\": [\"...\"],\n" +
+                "  \"opportunities\": [\"...\"],\n" +
+                "  \"caseNotesReview\": {\n" +
+                "    \"accuracy\": \"...\",\n" +
+                "    \"completeness\": \"...\",\n" +
+                "    \"formatting\": \"...\",\n" +
+                "    \"revisedNotes\": \"...\"\n" +
+                "  },\n" +
+                "  \"reconsiderations\": [\n" +
+                "    {\n" +
+                "      \"key\": \"0:0\",\n" +
+                "      \"question\": \"...\",\n" +
+                "      \"userSelected\": \"...\",\n" +
+                "      \"suggestedRating\": \"...\",\n" +
+                "      \"reasoning\": \"...\"\n" +
+                "    }\n" +
+                "  ],\n" +
+                "  \"feedbacks\": {\n" +
+                "    \"0:0\": \"...\"\n" +
+                "  }\n" +
+                "}";
+
+            callGemini(fullPrompt, "You are an expert QA evaluation system. Output valid JSON only.")
+                .then(function(rawRes){
+                    var cleanJsonStr = rawRes.replace(/```json\s*/i, '').replace(/```\s*$/i, '').trim();
+                    var data;
+                    try {
+                        data = JSON.parse(cleanJsonStr);
+                    } catch(jsonErr) {
+                        var jsonMatch = cleanJsonStr.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) data = JSON.parse(jsonMatch[0]);
+                        else throw new Error("Could not parse JSON response from Gemini: " + jsonErr.message);
                     }
-                    showToast("Case notes analysis complete!", false);
+
+                    // 1. Update Rubric textareas with processed feedback
+                    var updatedCount = 0;
+                    if (data.feedbacks && typeof data.feedbacks === 'object') {
+                        Object.keys(data.feedbacks).forEach(function(k){
+                            var newFb = (data.feedbacks[k] || '').trim();
+                            if (newFb && state[k]) {
+                                state[k].text = newFb;
+                                if (state[k].domTextarea) state[k].domTextarea.value = newFb;
+                                if (state[k].refreshUI) state[k].refreshUI();
+                                updatedCount++;
+                            }
+                        });
+                    }
+
+                    // 2. Render Rich Analysis Results
+                    resPlaceholder.innerHTML = "";
+                    var resDiv = createElement("div", "display:flex;flex-direction:column;gap:14px;");
+
+                    // Summary Card
+                    if (data.summary) {
+                        var sumCard = createElement("div", "background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:6px;");
+                        var sumHeader = createElement("div", "display:flex;justify-content:space-between;align-items:center;font-weight:700;color:#1e40af;font-size:12px;");
+                        sumHeader.innerHTML = "<span>📋 Summary of Interaction</span>";
+                        var btnCopySum = createElement("button", "padding:3px 8px;background:white;border:1px solid #93c5fd;border-radius:4px;font-size:11px;color:#1d4ed8;cursor:pointer;font-weight:600;");
+                        btnCopySum.textContent = "Copy to Issue/Concern";
+                        addListener(btnCopySum, "click", function(){
+                            if (txtIssue) {
+                                txtIssue.value = data.summary;
+                                txtIssue.dispatchEvent(new Event('input'));
+                                showToast("Copied to Issue/Concern!", false);
+                            }
+                        });
+                        sumHeader.appendChild(btnCopySum);
+                        var sumTxt = createElement("div", "color:#1e293b;font-size:13px;line-height:1.4;");
+                        sumTxt.textContent = data.summary;
+                        sumCard.appendChild(sumHeader);
+                        sumCard.appendChild(sumTxt);
+                        resDiv.appendChild(sumCard);
+                    }
+
+                    // Strengths & Opportunities
+                    var gridSO = createElement("div", "display:grid;grid-template-columns:1fr 1fr;gap:10px;");
+                    if (data.strengths && data.strengths.length > 0) {
+                        var strCard = createElement("div", "background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px;");
+                        strCard.innerHTML = "<div style='font-weight:700;color:#15803d;font-size:12px;margin-bottom:6px;'>🌟 Key Strengths</div><ul style='margin:0;padding-left:16px;font-size:12px;color:#1e293b;'>" + data.strengths.map(function(s){ return "<li style='margin-bottom:4px;'>" + s + "</li>"; }).join("") + "</ul>";
+                        gridSO.appendChild(strCard);
+                    }
+                    if (data.opportunities && data.opportunities.length > 0) {
+                        var oppCard = createElement("div", "background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px;");
+                        oppCard.innerHTML = "<div style='font-weight:700;color:#b45309;font-size:12px;margin-bottom:6px;'>💡 Coaching Opportunities</div><ul style='margin:0;padding-left:16px;font-size:12px;color:#1e293b;'>" + data.opportunities.map(function(o){ return "<li style='margin-bottom:4px;'>" + o + "</li>"; }).join("") + "</ul>";
+                        gridSO.appendChild(oppCard);
+                    }
+                    if (gridSO.children.length > 0) resDiv.appendChild(gridSO);
+
+                    // Case Notes Audit
+                    if (data.caseNotesReview && typeof data.caseNotesReview === 'object') {
+                        var notesCard = createElement("div", "background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;");
+                        var notesHeader = createElement("div", "font-weight:700;color:#334155;font-size:12px;display:flex;justify-content:space-between;align-items:center;");
+                        notesHeader.innerHTML = "<span>🗒️ Case Notes Audit</span>";
+                        if (data.caseNotesReview.revisedNotes) {
+                            var btnCopyNotes = createElement("button", "padding:3px 8px;background:white;border:1px solid #cbd5e1;border-radius:4px;font-size:11px;color:#334155;cursor:pointer;font-weight:600;");
+                            btnCopyNotes.textContent = "Copy Revised Notes";
+                            addListener(btnCopyNotes, "click", function(){
+                                txtNotes.value = data.caseNotesReview.revisedNotes;
+                                showToast("Copied revised notes!", false);
+                            });
+                            notesHeader.appendChild(btnCopyNotes);
+                        }
+                        notesCard.appendChild(notesHeader);
+
+                        var auditGrid = createElement("div", "display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:11px;");
+                        auditGrid.innerHTML = "<div><strong>Accuracy:</strong> " + (data.caseNotesReview.accuracy || "Reviewed") + "</div>" +
+                                              "<div><strong>Completeness:</strong> " + (data.caseNotesReview.completeness || "Reviewed") + "</div>" +
+                                              "<div><strong>Formatting:</strong> " + (data.caseNotesReview.formatting || "Reviewed") + "</div>";
+                        notesCard.appendChild(auditGrid);
+
+                        if (data.caseNotesReview.revisedNotes) {
+                            var revBox = createElement("div", "background:white;border:1px solid #e2e8f0;border-radius:4px;padding:8px;font-size:12px;white-space:pre-wrap;color:#334155;");
+                            revBox.textContent = data.caseNotesReview.revisedNotes;
+                            notesCard.appendChild(revBox);
+                        }
+                        resDiv.appendChild(notesCard);
+                    }
+
+                    // QA Matrix Reconsiderations
+                    if (data.reconsiderations && Array.isArray(data.reconsiderations) && data.reconsiderations.length > 0) {
+                        var recCard = createElement("div", "background:#fefce8;border:1px solid #fef08a;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;");
+                        recCard.innerHTML = "<div style='font-weight:700;color:#854d0e;font-size:12px;display:flex;align-items:center;gap:6px;'><span>⚠️ QA Matrix Reconsiderations (" + data.reconsiderations.length + ")</span></div>";
+                        
+                        data.reconsiderations.forEach(function(rec){
+                            var rItem = createElement("div", "background:white;border:1px solid #fef08a;border-radius:5px;padding:8px 10px;font-size:12px;display:flex;flex-direction:column;gap:4px;");
+                            rItem.innerHTML = "<div style='font-weight:600;color:#1e293b;'>" + (rec.question || "Rubric Item") + "</div>" +
+                                              "<div style='font-size:11px;color:#64748b;'>Selected: <strong style='color:#ef4444;'>" + (rec.userSelected || "Current") + "</strong> ➔ Suggested: <strong style='color:#15803d;'>" + (rec.suggestedRating || "Recommended") + "</strong></div>" +
+                                              "<div style='color:#475569;font-size:12px;line-height:1.4;'>" + (rec.reasoning || "") + "</div>";
+                            
+                            if (rec.key && rec.suggestedRating && state[rec.key] && state[rec.key].options) {
+                                var btnApply = createElement("button", "align-self:flex-start;margin-top:2px;padding:3px 8px;background:#fef3c7;border:1px solid #fde047;border-radius:4px;font-size:11px;color:#854d0e;cursor:pointer;font-weight:600;");
+                                btnApply.textContent = "Apply \"" + rec.suggestedRating + "\" to Form";
+                                addListener(btnApply, "click", function(){
+                                    var s = state[rec.key];
+                                    var foundOpt = s.options.find(function(o){
+                                        return o.label.toLowerCase().includes(rec.suggestedRating.toLowerCase()) || rec.suggestedRating.toLowerCase().includes(o.label.toLowerCase());
+                                    });
+                                    if (foundOpt) {
+                                        s.sel = foundOpt.id;
+                                        s.selIndex = s.options.indexOf(foundOpt);
+                                        if (s.refreshUI) s.refreshUI();
+                                        updateLiveScore();
+                                        showToast("Applied " + foundOpt.label + " to rubric!", false);
+                                    }
+                                });
+                                rItem.appendChild(btnApply);
+                            }
+                            recCard.appendChild(rItem);
+                        });
+                        resDiv.appendChild(recCard);
+                    }
+
+                    // Processed Feedback Summary
+                    if (updatedCount > 0) {
+                        var fbSummary = createElement("div", "background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px 12px;font-size:12px;color:#166534;font-weight:600;display:flex;align-items:center;gap:6px;");
+                        fbSummary.innerHTML = "<span>✨ Successfully generated and applied targeted feedback to " + updatedCount + " rubric line item(s)!</span>";
+                        resDiv.appendChild(fbSummary);
+                    }
+
+                    resPlaceholder.appendChild(resDiv);
+                    showToast("Analysis complete! Updated " + updatedCount + " line item(s).", false);
                     inputAccordion.body.style.display = "none";
                     inputAccordion.container.firstChild.lastChild.textContent = "▼";
                 })
                 .catch(function(err){
                     resPlaceholder.innerHTML = "<div style='color:#ef4444;padding:15px;text-align:center'>❌ " + err.message + "</div>";
-                    showToast(err.message, true);
+                    showToast("Analysis error: " + err.message, true);
                 })
                 .finally(function(){
                     pBtnGen.disabled = false;
                     pBtnGen.textContent = "Generate Analysis";
                 });
         });
+
         pFooter.appendChild(pBtnGen);
 
         pModal.appendChild(pHeader);
@@ -547,15 +1016,14 @@
         pModal.appendChild(pFooter);
         pOverlay.appendChild(pModal);
         document.body.appendChild(pOverlay);
-        makeDraggable(pModal, pHeader);
     };
 
     // --- Chat Checker Modal ---
     var showChatCheckerModal = function() {
-        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:rgba(0,0,0,0.4); pointer-events:auto; align-items:center");
-        var pModal = createElement("div", sModal + "; height:auto; max-height:85vh; width:580px; cursor:default; user-select:auto");
+        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:transparent; pointer-events:none; align-items:center");
+        var pModal = createElement("div", sModal + "; height:auto; max-height:85vh; width:580px; cursor:default; user-select:auto; box-shadow:0 16px 40px rgba(0,0,0,0.28); border:1px solid #cbd5e1;");
         var pHeader = createElement("div", sHeader + "; cursor:move");
-        pHeader.innerHTML = "<span>💬 Chat Checker (Gemini AI)</span>";
+        pHeader.innerHTML = "<span>💬 Chat Checker</span>";
         var pClose = createElement("span", "cursor:pointer;font-size:18px;color:#94a3b8");
         pClose.textContent = "×";
         addListener(pClose, "click", function(){ pOverlay.remove(); });
@@ -638,7 +1106,7 @@
     };
 
     // Hook options to aiToolsMenu
-    aiToolsMenu.appendChild(createMenuItem("📝 Case Notes Checker", showCaseNotesCheckerModal, aiToolsMenu));
+    aiToolsMenu.appendChild(createMenuItem("🔍 Interaction Checker", showInteractionCheckerModal, aiToolsMenu));
     aiToolsMenu.appendChild(createMenuItem("💬 Chat Checker", showChatCheckerModal, aiToolsMenu));
     toolsMenu.appendChild(createMenuItem("⚙️ Configure", function(){ showSettingsModal(false); }, toolsMenu));
 
@@ -656,28 +1124,6 @@
     // --- Header Fields (Compact Layout: In-Field Icons & Ghosttext Placeholders, No Labels) ---
     var headerFieldsContainer = createElement("div");
     headerFieldsContainer.style.cssText = "display:flex;flex-direction:column;gap:8px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #e2e8f0";
-
-    // Helper to wrap input/select with an in-field icon (uniform 36px height, margin 0, left padding 36px)
-    var createIconFieldWrapper = function(icon, element, fullWidth) {
-        var wrap = createElement("div");
-        wrap.style.cssText = "position:relative;display:flex;align-items:center;width:100%;margin:0;" + (fullWidth ? "grid-column:1 / -1;" : "");
-
-        var iconEl = createElement("span");
-        iconEl.textContent = icon;
-        iconEl.style.cssText = "position:absolute;left:11px;pointer-events:none;font-size:13px;z-index:2;user-select:none;display:inline-flex;align-items:center;justify-content:center;";
-
-        element.style.paddingLeft = "36px";
-        element.style.boxSizing = "border-box";
-        element.style.width = "100%";
-        element.style.height = "36px";
-        element.style.paddingTop = "0";
-        element.style.paddingBottom = "0";
-        element.style.margin = "0";
-
-        wrap.appendChild(iconEl);
-        wrap.appendChild(element);
-        return wrap;
-    };
 
     // 1. Agent's Name Dropdown
     var selAgent = createElement("select", sSelect);
@@ -2204,7 +2650,7 @@
     var showSettingsModal = function(isMandatory) {
         if (document.getElementById('qa-settings-modal-overlay')) return;
 
-        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:rgba(0,0,0,0.45); pointer-events:auto; align-items:center");
+        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:transparent; pointer-events:none; align-items:center");
         pOverlay.id = "qa-settings-modal-overlay";
         var pModal = createElement("div", sModal + "; height:auto; max-height:85vh; width:500px; cursor:default; user-select:auto; box-shadow:0 20px 40px rgba(0,0,0,0.3); border:1px solid #cbd5e1;");
         var pHeader = createElement("div", sHeader + "; cursor:grab; border-radius:8px 8px 0 0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 18px;");
@@ -2397,7 +2843,8 @@
                 token: API_TOKEN,
                 qaEmail: QA_EMAIL,
                 geminiApiKey: GEMINI_API_KEY,
-                geminiModel: GEMINI_MODEL
+                geminiModel: GEMINI_MODEL,
+                aiInstructions: aiInstructions
             };
 
             fetch(API_BASE_URL, {
@@ -2446,6 +2893,23 @@
                 if (cached.userGeminiModel) {
                     GEMINI_MODEL = cached.userGeminiModel;
                     storage.set('gemini_model', GEMINI_MODEL);
+                }
+                if (cached.userAiInstructions) {
+                    if (typeof cached.userAiInstructions === 'object') {
+                        if (cached.userAiInstructions.general) aiInstructions.general = cached.userAiInstructions.general;
+                        if (cached.userAiInstructions.defaultItem) aiInstructions.defaultItem = cached.userAiInstructions.defaultItem;
+                        if (cached.userAiInstructions.items) aiInstructions.items = cached.userAiInstructions.items;
+                    } else if (typeof cached.userAiInstructions === 'string' && cached.userAiInstructions.trim()) {
+                        try {
+                            var parsedCachedInstr = JSON.parse(cached.userAiInstructions);
+                            if (parsedCachedInstr.general) aiInstructions.general = parsedCachedInstr.general;
+                            if (parsedCachedInstr.defaultItem) aiInstructions.defaultItem = parsedCachedInstr.defaultItem;
+                            if (parsedCachedInstr.items) aiInstructions.items = parsedCachedInstr.items;
+                        } catch(e) {}
+                    }
+                    storage.set('ai_gen_instr', aiInstructions.general);
+                    storage.set('ai_item_instr', aiInstructions.defaultItem);
+                    storage.set('ai_per_item_instr', JSON.stringify(aiInstructions.items || {}));
                 }
                 if (cached.qaName) currentQaDisplayName = cached.qaName;
                 if (cached.qaFirstName) qaFirstName = cached.qaFirstName;
@@ -2527,6 +2991,23 @@
                             if (data.userGeminiModel) {
                                 GEMINI_MODEL = data.userGeminiModel;
                                 storage.set('gemini_model', GEMINI_MODEL);
+                            }
+                            if (data.userAiInstructions) {
+                                if (typeof data.userAiInstructions === 'object') {
+                                    if (data.userAiInstructions.general) aiInstructions.general = data.userAiInstructions.general;
+                                    if (data.userAiInstructions.defaultItem) aiInstructions.defaultItem = data.userAiInstructions.defaultItem;
+                                    if (data.userAiInstructions.items) aiInstructions.items = data.userAiInstructions.items;
+                                } else if (typeof data.userAiInstructions === 'string' && data.userAiInstructions.trim()) {
+                                    try {
+                                        var parsedDataInstr = JSON.parse(data.userAiInstructions);
+                                        if (parsedDataInstr.general) aiInstructions.general = parsedDataInstr.general;
+                                        if (parsedDataInstr.defaultItem) aiInstructions.defaultItem = parsedDataInstr.defaultItem;
+                                        if (parsedDataInstr.items) aiInstructions.items = parsedDataInstr.items;
+                                    } catch(e) {}
+                                }
+                                storage.set('ai_gen_instr', aiInstructions.general);
+                                storage.set('ai_item_instr', aiInstructions.defaultItem);
+                                storage.set('ai_per_item_instr', JSON.stringify(aiInstructions.items || {}));
                             }
                             if (data.qaName) currentQaDisplayName = data.qaName;
                             if (data.qaFirstName) qaFirstName = data.qaFirstName;
