@@ -202,6 +202,19 @@
                     } catch(e) { resolve(false); }
                 });
             }).catch(function() { return false; });
+        },
+        delete: function(key) {
+            var self = this;
+            return this.open().then(function(db) {
+                return new Promise(function(resolve) {
+                    try {
+                        var tx = db.transaction(self.storeName, 'readwrite');
+                        tx.objectStore(self.storeName).delete(key);
+                        tx.oncomplete = function() { resolve(true); };
+                        tx.onerror = function() { resolve(false); };
+                    } catch(e) { resolve(false); }
+                });
+            }).catch(function() { return false; });
         }
     };
 
@@ -414,15 +427,16 @@
     var btnRefresh = createElement("span");
     btnRefresh.textContent = "🔄";
     btnRefresh.title = "Force Refresh Database";
-    btnRefresh.style.cssText = "cursor:pointer;font-size:16px;padding:4px 6px;border-radius:4px;transition:background 0.2s;user-select:none";
+    btnRefresh.style.cssText = "cursor:pointer;font-size:16px;padding:4px 6px;border-radius:4px;transition:transform 0.5s ease, background 0.2s;user-select:none;display:inline-block;";
     addListener(btnRefresh, "mouseenter", function(){ btnRefresh.style.background = "rgba(0,0,0,0.06)"; });
     addListener(btnRefresh, "mouseleave", function(){ btnRefresh.style.background = "transparent"; });
     addListener(btnRefresh, "click", function(e){
         e.stopPropagation();
+        btnRefresh.style.transform = "rotate(360deg)";
+        setTimeout(function(){ btnRefresh.style.transform = "rotate(0deg)"; }, 600);
         storage.set('last_sync_ts', '');
-        idb.delete('cached_payload').then(function(){
-            checkAndSyncData(true);
-        }).catch(function(){
+        showLoading("Force syncing latest data from Google Sheets...");
+        idb.delete('cached_payload').finally(function(){
             checkAndSyncData(true);
         });
     });
@@ -577,28 +591,91 @@
         addListener(btnUpload, "mouseleave", function(){ btnUpload.style.background = "#eff6ff"; });
         addListener(btnUpload, "click", function(e){ e.preventDefault(); fileUploadInput.click(); });
 
+        // Editor Drawer for viewing/editing transcript
+        var transcriptEditorContainer = createElement("div", "display:none;flex-direction:column;gap:6px;padding:10px;background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;margin-top:2px;");
+        var editorHeader = createElement("div", "display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:#1e293b;");
+        var editorTitle = createElement("span");
+        editorTitle.textContent = "📄 Transcript Editor";
+        var editorRight = createElement("div", "display:flex;align-items:center;gap:8px;");
+        var editorWordsCount = createElement("span", "font-size:11px;font-weight:500;color:#64748b;");
+        var btnCloseEditor = createElement("span", "cursor:pointer;color:#94a3b8;font-size:14px;padding:1px 5px;border-radius:3px;");
+        btnCloseEditor.textContent = "✕";
+        btnCloseEditor.title = "Close editor";
+        addListener(btnCloseEditor, "click", function(){
+            transcriptEditorContainer.style.display = "none";
+        });
+        editorRight.appendChild(editorWordsCount);
+        editorRight.appendChild(btnCloseEditor);
+        editorHeader.appendChild(editorTitle);
+        editorHeader.appendChild(editorRight);
+
+        var txtTranscriptEditor = createElement("textarea", sTextarea + "; height:130px; resize:vertical; font-size:12px; line-height:1.4; font-family:monospace;");
+        txtTranscriptEditor.placeholder = "Transcript text...";
+
+        var updateEditorWords = function() {
+            var words = (txtTranscriptEditor.value || "").trim().split(/\s+/).filter(Boolean).length;
+            editorWordsCount.textContent = words + " words";
+        };
+
+        addListener(txtTranscriptEditor, "input", function(){
+            uploadedTranscript = txtTranscriptEditor.value;
+            if (!uploadedFileName) uploadedFileName = "Edited Transcript.txt";
+            updateTranscriptStatusUI();
+            updateEditorWords();
+        });
+
+        transcriptEditorContainer.appendChild(editorHeader);
+        transcriptEditorContainer.appendChild(txtTranscriptEditor);
+
+        // View/Edit transcript button
+        var btnView = createElement("span", "cursor:pointer;color:#2563eb;margin-left:6px;font-size:12px;padding:2px 6px;border-radius:3px;background:#eff6ff;border:1px solid #bfdbfe;display:inline-flex;align-items:center;justify-content:center;transition:background 0.15s;");
+        btnView.textContent = "👁️";
+        btnView.title = "View & Edit transcript text";
+        addListener(btnView, "mouseenter", function(){ btnView.style.background = "#dbeafe"; });
+        addListener(btnView, "mouseleave", function(){ btnView.style.background = "#eff6ff"; });
+        addListener(btnView, "click", function(e){
+            e.stopPropagation();
+            var isVis = transcriptEditorContainer.style.display === "flex";
+            if (isVis) {
+                transcriptEditorContainer.style.display = "none";
+            } else {
+                txtTranscriptEditor.value = uploadedTranscript !== null ? uploadedTranscript : (pageTranscript || extractTranscript() || "");
+                editorTitle.textContent = uploadedTranscript !== null ? ("📄 " + (uploadedFileName || "Uploaded File")) : "📄 Page Transcript";
+                updateEditorWords();
+                transcriptEditorContainer.style.display = "flex";
+                txtTranscriptEditor.focus();
+            }
+        });
+
+        // Reset / Delete uploaded file button (just an '✕' icon)
+        var btnReset = createElement("span", "cursor:pointer;color:#ef4444;margin-left:4px;font-weight:700;font-size:11px;padding:2px 6px;border-radius:3px;background:#fee2e2;display:inline-flex;align-items:center;justify-content:center;transition:background 0.15s;");
+        btnReset.textContent = "✕";
+        btnReset.title = "Remove uploaded file / Revert to page transcript";
+        addListener(btnReset, "mouseenter", function(){ btnReset.style.background = "#fecaca"; });
+        addListener(btnReset, "mouseleave", function(){ btnReset.style.background = "#fee2e2"; });
+        addListener(btnReset, "click", function(e){
+            e.stopPropagation();
+            uploadedTranscript = null;
+            uploadedFileName = "";
+            fileUploadInput.value = "";
+            txtTranscriptEditor.value = "";
+            transcriptEditorContainer.style.display = "none";
+            updateTranscriptStatusUI();
+        });
+
         var updateTranscriptStatusUI = function() {
             transcriptStatus.innerHTML = "";
-            if (uploadedTranscript) {
+            if (uploadedTranscript !== null && uploadedTranscript !== undefined) {
                 var words = uploadedTranscript.trim().split(/\s+/).filter(Boolean).length;
-                transcriptStatus.innerHTML = "<span>📁</span> <span style='font-weight:600;color:#1e293b;'>Uploaded: " + (uploadedFileName || "file.txt") + "</span> <span style='color:#64748b;'>(" + words + " words)</span>";
-                
-                var btnReset = createElement("span", "cursor:pointer;color:#ef4444;margin-left:6px;font-weight:600;font-size:11px;padding:2px 6px;border-radius:3px;background:#fee2e2;");
-                btnReset.textContent = "✕ Use Page";
-                btnReset.title = "Revert to page transcript";
-                addListener(btnReset, "click", function(e){
-                    e.stopPropagation();
-                    uploadedTranscript = null;
-                    uploadedFileName = "";
-                    fileUploadInput.value = "";
-                    updateTranscriptStatusUI();
-                });
+                transcriptStatus.innerHTML = "<span>📁</span> <span style='font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;max-width:180px;display:inline-block;vertical-align:bottom;white-space:nowrap;'>" + (uploadedFileName || "file.txt") + "</span> <span style='color:#64748b;'>(" + words + " words)</span>";
+                transcriptStatus.appendChild(btnView);
                 transcriptStatus.appendChild(btnReset);
             } else {
                 pageTranscript = extractTranscript();
                 var pWords = pageTranscript ? pageTranscript.trim().split(/\s+/).filter(Boolean).length : 0;
                 if (pWords > 0) {
                     transcriptStatus.innerHTML = "<span>📄</span> <span style='color:#1e293b;font-weight:600;'>Page Transcript</span> <span style='color:#64748b;'>(" + pWords + " words detected)</span>";
+                    transcriptStatus.appendChild(btnView);
                 } else {
                     transcriptStatus.innerHTML = "<span>⚠️</span> <span style='color:#b45309;font-weight:500;'>No transcript found on page</span> <span style='color:#94a3b8;'>(Upload file to supply)</span>";
                 }
@@ -612,6 +689,10 @@
             reader.onload = function(evt) {
                 uploadedTranscript = evt.target.result || "";
                 uploadedFileName = file.name;
+                txtTranscriptEditor.value = uploadedTranscript;
+                editorTitle.textContent = "📄 " + file.name;
+                updateEditorWords();
+                transcriptEditorContainer.style.display = "flex";
                 updateTranscriptStatusUI();
                 showToast("Loaded transcript: " + file.name, false);
             };
@@ -626,6 +707,7 @@
         transcriptBar.appendChild(btnUpload);
         transcriptBar.appendChild(fileUploadInput);
         divInputs.appendChild(transcriptBar);
+        divInputs.appendChild(transcriptEditorContainer);
 
         // 5. Processing Scope & Interaction Type Indicator
         var scopeBar = createElement("div", "display:flex;align-items:center;justify-content:space-between;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 12px;font-size:11px;color:#1e40af;");
@@ -1024,96 +1106,8 @@
         document.body.appendChild(pOverlay);
     };
 
-    // --- Chat Checker Modal ---
-    var showChatCheckerModal = function() {
-        var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:transparent; pointer-events:none; display:flex; justify-content:center; align-items:flex-start; padding-top:20px; padding-bottom:20px; overflow-y:auto;");
-        var pModal = createElement("div", "background:white;border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,0.28);width:90%;max-width:600px;height:82vh;max-height:820px;display:flex;flex-direction:column;cursor:default;user-select:auto;pointer-events:auto;position:relative;border:1px solid #cbd5e1;overflow:hidden;margin-bottom:20px;");
-        var pHeader = createElement("div", sHeader + "; cursor:move; border-radius:8px 8px 0 0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 18px; flex-shrink:0;");
-        pHeader.innerHTML = "<span>💬 Chat Checker</span>";
-        var pClose = createElement("span", "cursor:pointer;font-size:18px;color:#94a3b8");
-        pClose.textContent = "×";
-        addListener(pClose, "click", function(){ pOverlay.remove(); });
-        pHeader.appendChild(pClose);
-
-        var pBody = createElement("div", "padding:18px 20px;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:12px;user-select:text;scrollbar-width:thin;scrollbar-color:#94a3b8 #f1f5f9;");
-
-        var divInputs = createElement("div", "display:flex;flex-direction:column;gap:12px");
-        var grpTranscript = createElement("div");
-        grpTranscript.appendChild(createElement("label", sLabel)).textContent = "Chat Transcript";
-        var txtChat = createElement("textarea", sTextarea + "; height:140px");
-        txtChat.value = extractTranscript();
-        txtChat.placeholder = "Paste or inspect chat transcript...";
-        grpTranscript.appendChild(txtChat);
-        divInputs.appendChild(grpTranscript);
-
-        var inputAccordion = createAccordion("Chat Transcript", divInputs, true);
-        pBody.appendChild(inputAccordion.container);
-
-        var divOutput = createElement("div", "font-size:13px;line-height:1.6;color:#1e293b;user-select:text");
-        var resPlaceholder = createElement("div");
-        resPlaceholder.innerHTML = "<div style='color:#94a3b8;font-style:italic;padding:18px;text-align:center;background:#f8fafc;border-radius:6px;border:1px dashed #cbd5e1'>Chat evaluation will appear here...</div>";
-        divOutput.appendChild(resPlaceholder);
-        var outputAccordion = createAccordion("Analysis Results", divOutput, true);
-        pBody.appendChild(outputAccordion.container);
-
-        var pFooter = createElement("div", sFooter);
-        var pBtnCancel = createElement("button", sBtnCancel);
-        pBtnCancel.textContent = "Close";
-        addListener(pBtnCancel, "click", function(){ pOverlay.remove(); });
-        pFooter.appendChild(pBtnCancel);
-
-        var pBtnGen = createElement("button", sBtnGenerate);
-        pBtnGen.textContent = "Evaluate Chat";
-        addListener(pBtnGen, "click", function(){
-            var chatText = txtChat.value.trim();
-            if(!chatText) return showToast("Chat transcript is empty.", true);
-
-            pBtnGen.disabled = true;
-            pBtnGen.textContent = "Evaluating... ⏳";
-            resPlaceholder.innerHTML = "<div style='padding:20px;text-align:center;color:#2563eb;font-weight:600'>🚀 Gemini is evaluating the chat interaction...</div>";
-
-            var prompt = "Evaluate this customer support chat transcript against QA standards:\n\n" +
-                         "=== CHAT TRANSCRIPT ===\n" + chatText + "\n\n" +
-                         "Audit each category:\n" +
-                         "1. GREETING & CLOSING: Professional opening, proper verification, polite sign-off.\n" +
-                         "2. EMPATHY & TONE: Professionalism, de-escalation, emotional intelligence.\n" +
-                         "3. RESOLUTION & PROBING: Effective problem-solving, root cause identification.\n" +
-                         "4. GRAMMAR & CLARITY: Punctuation, spelling, concise communication.\n\n" +
-                         "Format with:\n" +
-                         "- OVERALL EVALUATION (Pass / Needs Coaching)\n" +
-                         "- HIGHLIGHTS\n" +
-                         "- AREAS FOR IMPROVEMENT\n" +
-                         "- RECOMMENDED RESPONSES";
-
-            callGemini(prompt, "You are a senior QA chat evaluation specialist.")
-                .then(function(resText){
-                    resPlaceholder.innerHTML = "<div style='white-space:pre-wrap;padding:6px;user-select:text;cursor:text'>" + resText + "</div>";
-                    showToast("Chat audit complete!", false);
-                    inputAccordion.body.style.display = "none";
-                    inputAccordion.container.firstChild.lastChild.textContent = "▼";
-                })
-                .catch(function(err){
-                    resPlaceholder.innerHTML = "<div style='color:#ef4444;padding:15px;text-align:center'>❌ " + err.message + "</div>";
-                    showToast(err.message, true);
-                })
-                .finally(function(){
-                    pBtnGen.disabled = false;
-                    pBtnGen.textContent = "Evaluate Chat";
-                });
-        });
-        pFooter.appendChild(pBtnGen);
-
-        pModal.appendChild(pHeader);
-        pModal.appendChild(pBody);
-        pModal.appendChild(pFooter);
-        pOverlay.appendChild(pModal);
-        document.body.appendChild(pOverlay);
-        makeDraggable(pModal, pHeader);
-    };
-
     // Hook options to aiToolsMenu
     aiToolsMenu.appendChild(createMenuItem("🔍 Interaction Checker", showInteractionCheckerModal, aiToolsMenu));
-    aiToolsMenu.appendChild(createMenuItem("💬 Chat Checker", showChatCheckerModal, aiToolsMenu));
     toolsMenu.appendChild(createMenuItem("⚙️ Configure", function(){ showSettingsModal(false); }, toolsMenu));
 
     toolsContainer.appendChild(btnRefresh);
