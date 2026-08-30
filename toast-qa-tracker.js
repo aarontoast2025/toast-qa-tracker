@@ -45,12 +45,10 @@
     var qaFirstName = "";
     var existingRecordId = null;
 
-    var DEFAULT_GENERAL_INSTRUCTION = "Write in professional, concise, objective, and action-oriented English. Incorporate specific context from the interaction (e.g. customer statements, troubleshooting steps, tool names, reference IDs, and cutoff times). Formulate the feedback directly to reflect whether the quality standard was excelled, met, or missed. Never include meta-instructions, prefixes like 'Feedback:', or mention formatting guidelines in the output.";
-    var DEFAULT_ITEM_INSTRUCTION = "Start with an active verb in past/present tense (e.g., Investigated, Reached, Verified, Provided, Identified, Advised). State specifically what the advocate did or what was missed.";
+    var DEFAULT_GENERAL_INSTRUCTION = "Write feedback in concise, objective, and action-oriented paragraphs. Each feedback must be written as a complete paragraph in professional English. Incorporate specific context from the interaction (e.g. customer statements, troubleshooting steps, tool names, reference IDs, cutoff times). Rephrase and enrich the QA's draft feedback while strictly preserving the QA's rating direction (e.g. met, excelled, or missed). Never include meta-instructions, prefixes like 'Feedback:', or mention formatting guidelines in the output.";
 
     var aiInstructions = {
         general: storage.get('ai_gen_instr', DEFAULT_GENERAL_INSTRUCTION),
-        defaultItem: storage.get('ai_item_instr', DEFAULT_ITEM_INSTRUCTION),
         items: {}
     };
     try {
@@ -58,13 +56,11 @@
         aiInstructions.items = JSON.parse(savedItemInstr) || {};
     } catch(e) { aiInstructions.items = {}; }
 
-    var saveInstructionsToDb = function(genText, defItemText, perItemObj) {
+    var saveInstructionsToDb = function(genText, perItemObj) {
         aiInstructions.general = genText !== undefined ? genText : aiInstructions.general;
-        aiInstructions.defaultItem = defItemText !== undefined ? defItemText : aiInstructions.defaultItem;
         aiInstructions.items = perItemObj !== undefined ? perItemObj : aiInstructions.items;
 
         storage.set('ai_gen_instr', aiInstructions.general);
-        storage.set('ai_item_instr', aiInstructions.defaultItem);
         storage.set('ai_per_item_instr', JSON.stringify(aiInstructions.items));
 
         if (!QA_EMAIL || !API_BASE_URL) {
@@ -523,9 +519,9 @@
 
         var pOverlay = createElement("div", sOverlay + "; z-index:100002; background:transparent; pointer-events:none; display:flex; justify-content:center; align-items:flex-start; padding-top:20px; padding-bottom:20px; overflow-y:auto;");
         pOverlay.id = "qa-interaction-checker-overlay";
-        var pModal = createElement("div", "background:white;border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,0.28);width:92%;max-width:680px;height:86vh;max-height:860px;display:flex;flex-direction:column;cursor:default;user-select:auto;pointer-events:auto;position:relative;border:1px solid #cbd5e1;overflow:hidden;margin-bottom:20px;");
+        var pModal = createElement("div", "background:white;border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,0.28);width:90%;max-width:580px;height:82vh;max-height:820px;display:flex;flex-direction:column;cursor:default;user-select:auto;pointer-events:auto;position:relative;border:1px solid #cbd5e1;overflow:hidden;margin-bottom:20px;");
         var pHeader = createElement("div", sHeader + "; cursor:grab; border-radius:8px 8px 0 0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 18px; flex-shrink:0;");
-        pHeader.innerHTML = "<span style='font-size:15px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;'>📝 <span>Interaction Checker</span></span>";
+        pHeader.innerHTML = "<span style='font-size:15px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;'>🔍 <span>Interaction Checker</span></span>";
         var pClose = createElement("span", "cursor:pointer;font-size:20px;color:#94a3b8;line-height:1;font-weight:400;padding:2px 6px;border-radius:4px;transition:all 0.15s");
         pClose.textContent = "×";
         addListener(pClose, "mouseenter", function(){ pClose.style.color = "#ef4444"; pClose.style.background = "#fee2e2"; });
@@ -672,16 +668,6 @@
         grpGenInstr.appendChild(txtGenInstr);
         divInstr.appendChild(grpGenInstr);
 
-        var grpDefItem = createElement("div");
-        var lblDefItem = createElement("label", sLabel);
-        lblDefItem.textContent = "Default Item Format Rule";
-        var txtDefItem = createElement("textarea", sTextarea + "; height:60px; resize:vertical; font-size:12px; line-height:1.4;");
-        txtDefItem.placeholder = "e.g. Start with an active verb in past/present tense (e.g., Investigated, Reached, Verified)...";
-        txtDefItem.value = aiInstructions.defaultItem || DEFAULT_ITEM_INSTRUCTION;
-        grpDefItem.appendChild(lblDefItem);
-        grpDefItem.appendChild(txtDefItem);
-        divInstr.appendChild(grpDefItem);
-
         // Per-item override accordion
         var perItemContainer = createElement("div", "display:flex;flex-direction:column;gap:10px;height:auto;overflow:visible;width:100%;");
         var perItemInputs = {};
@@ -710,7 +696,7 @@
                 itLabel.textContent = itemCounter + ". " + itName;
                 
                 var itTextarea = createElement("textarea", sTextarea + ";font-size:12px;padding:6px 8px;height:52px;resize:vertical;line-height:1.4;box-sizing:border-box;width:100%;");
-                itTextarea.placeholder = "Inherits default format rule above...";
+                itTextarea.placeholder = "Inherits General Instruction above...";
                 if (aiInstructions.items && aiInstructions.items[key]) {
                     itTextarea.value = aiInstructions.items[key];
                 }
@@ -735,7 +721,7 @@
             });
             btnSaveInstr.disabled = true;
             btnSaveInstr.textContent = "Saving...";
-            saveInstructionsToDb(txtGenInstr.value.trim(), txtDefItem.value.trim(), perItemObj).finally(function(){
+            saveInstructionsToDb(txtGenInstr.value.trim(), perItemObj).finally(function(){
                 btnSaveInstr.disabled = false;
                 btnSaveInstr.innerHTML = "<span>💾</span> <span>Save Instructions to Database</span>";
             });
@@ -790,7 +776,7 @@
                 var selOpt = (s.options && s.options[s.selIndex]) ? s.options[s.selIndex] : (s.options && s.options[0]);
                 var draftFb = (s.text || (s.domTextarea && s.domTextarea.value) || "").trim();
                 
-                var customFormat = (perItemInputs[k] && perItemInputs[k].value.trim()) || (aiInstructions.items && aiInstructions.items[k]) || txtDefItem.value.trim() || DEFAULT_ITEM_INSTRUCTION;
+                var customFormat = (perItemInputs[k] && perItemInputs[k].value.trim()) || (aiInstructions.items && aiInstructions.items[k]) || "";
 
                 var optionsSummary = (s.options || []).map(function(o){
                     return o.label + (o.points !== undefined ? " (" + o.points + " pts)" : "");
@@ -802,6 +788,7 @@
                     section: s.sectionName || s.groupName,
                     optionsAvailable: optionsSummary,
                     userSelectedRating: selOpt ? selOpt.label : "N/A",
+                    isCorrect: selOpt ? (selOpt.isCorrect === true) : null,
                     draftFeedback: draftFb,
                     itemFormatInstruction: customFormat
                 };
@@ -820,18 +807,29 @@
                 "=== QA RUBRIC MATRIX & EVALUATION STATE ===\n" +
                 JSON.stringify(itemsPayload, null, 2) + "\n\n" +
                 "=== GENERAL INSTRUCTIONS ===\n" + genPrompt + "\n\n" +
-                "=== GENERATION RULES ===\n" +
-                "1. ANALYSIS & AUDIT:\n" +
+                "=== STRICT GENERATION RULES ===\n" +
+                "1. ANALYSIS & AUDIT (OVERALL INTERACTION):\n" +
                 "   - summary: 1-2 concise sentences summarizing the customer's core inquiry and resolution.\n" +
                 "   - strengths: Array of 2-3 specific positive agent actions.\n" +
                 "   - opportunities: Array of 2-3 coaching or missed process opportunities.\n" +
-                "   - caseNotesReview: Object with accuracy, completeness, formatting, and recommended revisedNotes.\n" +
-                "   - reconsiderations: Array of objects for any line item where the transcript evidence strongly indicates a standard DIFFERENT from the user's selected rating. Include key, question, userSelected, suggestedRating (e.g. Quality standard missed/excelled), and reasoning.\n" +
-                "2. TARGETED FEEDBACK PER LINE ITEM:\n" +
-                "   - For every item in the QA rubric array:\n" +
-                "     * IF draftFeedback is empty/blank: return empty string \"\" for that item's key. DO NOT fabricate feedback for un-evaluated items.\n" +
-                "     * IF draftFeedback is NOT empty: Generate a targeted, context-rich feedback string in English that references specific details from the interaction (customer words, advocate troubleshooting, tools used) and confirms why the rating standard was achieved or missed.\n" +
-                "     * Strictly adhere to itemFormatInstruction (e.g., starting with an active verb) WITHOUT quoting the format rule itself or adding meta-text.\n\n" +
+                "   - caseNotesReview: Object with accuracy, completeness, formatting, and recommended revisedNotes (if notes are provided).\n" +
+                "2. PROCESSED FEEDBACK PER LINE ITEM (IN 'feedbacks'):\n" +
+                "   - The QA Auditor's userSelectedRating is authoritative for this field.\n" +
+                "   - IF isCorrect is TRUE (or userSelectedRating is 'Quality standard met' / 'Quality standard excelled'):\n" +
+                "     * The processed feedback MUST be positive and affirming, validating what the advocate did well.\n" +
+                "     * Rephrase, refine, and enrich the QA's draftFeedback by incorporating specific context from the interaction (customer issue, troubleshooting steps, tool names, reference IDs, cutoff times).\n" +
+                "     * NEVER write negative criticism or contradict the QA's rating direction in this field.\n" +
+                "   - IF isCorrect is FALSE (or userSelectedRating is 'Quality standard missed'):\n" +
+                "     * The processed feedback MUST be constructive coaching, pinpointing the specific gap or missing process.\n" +
+                "     * Incorporate specific details from the interaction.\n" +
+                "   - IF draftFeedback is blank/empty, generate a professional feedback paragraph confirming why the rating standard was achieved or missed according to userSelectedRating.\n" +
+                "   - PARAGRAPH FORMAT: Every feedback entry MUST be written as a complete, cohesive paragraph in professional English. Do NOT use bullet points or meta-prefixes like 'Feedback:'.\n" +
+                "3. AI DISSENTING OBSERVATIONS FOR RECONSIDERATION (IN 'lineItemReconsiderations'):\n" +
+                "   - Perform an independent audit of the interaction transcript and notes against the QA guidelines.\n" +
+                "   - If the evidence in the interaction indicates a different standard than the QA's userSelectedRating (e.g., the QA marked 'Quality standard met' for case notes, but the notes omitted critical details; or vice versa):\n" +
+                "     * DO NOT replace or contradict the processed feedback in rule 2.\n" +
+                "     * INSTEAD, record your independent finding under that item's key in 'lineItemReconsiderations'. Provide the suggestedRating and detailed reasoning.\n" +
+                "     * If you agree with the QA's rating, do NOT include the item in 'lineItemReconsiderations'.\n\n" +
                 "Return ONLY a strictly valid JSON object matching this schema:\n" +
                 "{\n" +
                 "  \"summary\": \"...\",\n" +
@@ -843,17 +841,14 @@
                 "    \"formatting\": \"...\",\n" +
                 "    \"revisedNotes\": \"...\"\n" +
                 "  },\n" +
-                "  \"reconsiderations\": [\n" +
-                "    {\n" +
-                "      \"key\": \"0:0\",\n" +
-                "      \"question\": \"...\",\n" +
-                "      \"userSelected\": \"...\",\n" +
-                "      \"suggestedRating\": \"...\",\n" +
-                "      \"reasoning\": \"...\"\n" +
-                "    }\n" +
-                "  ],\n" +
                 "  \"feedbacks\": {\n" +
                 "    \"0:0\": \"...\"\n" +
+                "  },\n" +
+                "  \"lineItemReconsiderations\": {\n" +
+                "    \"0:0\": {\n" +
+                "      \"suggestedRating\": \"Quality standard missed\",\n" +
+                "      \"reasoning\": \"...\"\n" +
+                "    }\n" +
                 "  }\n" +
                 "}";
 
@@ -869,7 +864,13 @@
                         else throw new Error("Could not parse JSON response from Gemini: " + jsonErr.message);
                     }
 
-                    // 1. Update Rubric textareas with processed feedback
+                    // 1. Auto-copy Summary of Interaction to Issue / Concern
+                    if (data.summary && txtIssue) {
+                        txtIssue.value = data.summary;
+                        txtIssue.dispatchEvent(new Event('input'));
+                    }
+
+                    // 2. Update Rubric textareas with processed feedback
                     var updatedCount = 0;
                     if (data.feedbacks && typeof data.feedbacks === 'object') {
                         Object.keys(data.feedbacks).forEach(function(k){
@@ -883,7 +884,7 @@
                         });
                     }
 
-                    // 2. Render Rich Analysis Results
+                    // 3. Render Rich Analysis Results
                     resPlaceholder.innerHTML = "";
                     var resDiv = createElement("div", "display:flex;flex-direction:column;gap:14px;");
 
@@ -892,8 +893,8 @@
                         var sumCard = createElement("div", "background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:6px;");
                         var sumHeader = createElement("div", "display:flex;justify-content:space-between;align-items:center;font-weight:700;color:#1e40af;font-size:12px;");
                         sumHeader.innerHTML = "<span>📋 Summary of Interaction</span>";
-                        var btnCopySum = createElement("button", "padding:3px 8px;background:white;border:1px solid #93c5fd;border-radius:4px;font-size:11px;color:#1d4ed8;cursor:pointer;font-weight:600;");
-                        btnCopySum.textContent = "Copy to Issue/Concern";
+                        var btnCopySum = createElement("button", "padding:3px 8px;background:#dcfce7;border:1px solid #86efac;border-radius:4px;font-size:11px;color:#15803d;cursor:pointer;font-weight:600;");
+                        btnCopySum.textContent = "Copied to Issue/Concern ✓";
                         addListener(btnCopySum, "click", function(){
                             if (txtIssue) {
                                 txtIssue.value = data.summary;
@@ -953,38 +954,98 @@
                         resDiv.appendChild(notesCard);
                     }
 
-                    // QA Matrix Reconsiderations
-                    if (data.reconsiderations && Array.isArray(data.reconsiderations) && data.reconsiderations.length > 0) {
-                        var recCard = createElement("div", "background:#fefce8;border:1px solid #fef08a;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;");
-                        recCard.innerHTML = "<div style='font-weight:700;color:#854d0e;font-size:12px;display:flex;align-items:center;gap:6px;'><span>⚠️ QA Matrix Reconsiderations (" + data.reconsiderations.length + ")</span></div>";
-                        
-                        data.reconsiderations.forEach(function(rec){
-                            var rItem = createElement("div", "background:white;border:1px solid #fef08a;border-radius:5px;padding:8px 10px;font-size:12px;display:flex;flex-direction:column;gap:4px;");
-                            rItem.innerHTML = "<div style='font-weight:600;color:#1e293b;'>" + (rec.question || "Rubric Item") + "</div>" +
-                                              "<div style='font-size:11px;color:#64748b;'>Selected: <strong style='color:#ef4444;'>" + (rec.userSelected || "Current") + "</strong> ➔ Suggested: <strong style='color:#15803d;'>" + (rec.suggestedRating || "Recommended") + "</strong></div>" +
-                                              "<div style='color:#475569;font-size:12px;line-height:1.4;'>" + (rec.reasoning || "") + "</div>";
+                    // Detailed Line Items Audit & AI Reconsiderations
+                    if (itemsPayload && itemsPayload.length > 0) {
+                        var lineItemsCard = createElement("div", "background:#ffffff;border:1px solid #e2e8f0;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:10px;");
+                        var lineItemsHeader = createElement("div", "font-weight:700;color:#1e293b;font-size:12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0;padding-bottom:6px;");
+                        lineItemsHeader.innerHTML = "<span>📝 Line Items Processed Feedback (" + itemsPayload.length + ")</span>";
+                        lineItemsCard.appendChild(lineItemsHeader);
+
+                        var reconsiderationsMap = data.lineItemReconsiderations || {};
+                        if (Array.isArray(data.reconsiderations)) {
+                            data.reconsiderations.forEach(function(r){
+                                if (r.key && !reconsiderationsMap[r.key]) {
+                                    reconsiderationsMap[r.key] = {
+                                        suggestedRating: r.suggestedRating,
+                                        reasoning: r.reasoning
+                                    };
+                                }
+                            });
+                        }
+
+                        itemsPayload.forEach(function(it, idx){
+                            var k = it.key;
+                            var fb = (data.feedbacks && data.feedbacks[k]) ? data.feedbacks[k] : "";
+                            var rec = reconsiderationsMap[k];
+                            var isPos = it.isCorrect !== false && !it.userSelectedRating.toLowerCase().includes("missed");
+
+                            var itBox = createElement("div", "background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:6px;");
                             
-                            if (rec.key && rec.suggestedRating && state[rec.key] && state[rec.key].options) {
-                                var btnApply = createElement("button", "align-self:flex-start;margin-top:2px;padding:3px 8px;background:#fef3c7;border:1px solid #fde047;border-radius:4px;font-size:11px;color:#854d0e;cursor:pointer;font-weight:600;");
-                                btnApply.textContent = "Apply \"" + rec.suggestedRating + "\" to Form";
-                                addListener(btnApply, "click", function(){
-                                    var s = state[rec.key];
-                                    var foundOpt = s.options.find(function(o){
-                                        return o.label.toLowerCase().includes(rec.suggestedRating.toLowerCase()) || rec.suggestedRating.toLowerCase().includes(o.label.toLowerCase());
-                                    });
-                                    if (foundOpt) {
-                                        s.sel = foundOpt.id;
-                                        s.selIndex = s.options.indexOf(foundOpt);
-                                        if (s.refreshUI) s.refreshUI();
-                                        updateLiveScore();
-                                        showToast("Applied " + foundOpt.label + " to rubric!", false);
-                                    }
-                                });
-                                rItem.appendChild(btnApply);
+                            var itTop = createElement("div", "display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;");
+                            var itTitle = createElement("div", "font-weight:600;font-size:12px;color:#1e293b;");
+                            itTitle.textContent = (idx + 1) + ". " + it.question + (it.section ? " (" + it.section + ")" : "");
+                            
+                            var badgeStyle = isPos ? "background:#dcfce7;color:#166534;border:1px solid #86efac;" : "background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;";
+                            var itBadge = createElement("span", "font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;" + badgeStyle);
+                            itBadge.textContent = it.userSelectedRating;
+                            
+                            itTop.appendChild(itTitle);
+                            itTop.appendChild(itBadge);
+                            itBox.appendChild(itTop);
+
+                            if (fb) {
+                                var fbBox = createElement("div", "font-size:12px;line-height:1.5;color:#334155;background:white;border:1px solid #cbd5e1;border-radius:5px;padding:8px 10px;white-space:pre-wrap;");
+                                fbBox.textContent = fb;
+                                itBox.appendChild(fbBox);
                             }
-                            recCard.appendChild(rItem);
+
+                            if (rec && (rec.reasoning || rec.suggestedRating)) {
+                                var recAlert = createElement("div", "background:#fefce8;border:1px solid #fde047;border-radius:5px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;margin-top:2px;");
+                                
+                                var recAlertHeader = createElement("div", "display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:#854d0e;");
+                                recAlertHeader.innerHTML = "<span>⚠️ AI Observation for Reconsideration</span>";
+                                if (rec.suggestedRating) {
+                                    var recSuggBadge = createElement("span", "background:#fef08a;color:#713f12;padding:1px 6px;border-radius:4px;border:1px solid #eab308;font-size:10px;font-weight:700;");
+                                    recSuggBadge.textContent = "Suggested: " + rec.suggestedRating;
+                                    recAlertHeader.appendChild(recSuggBadge);
+                                }
+                                recAlert.appendChild(recAlertHeader);
+
+                                if (rec.reasoning) {
+                                    var recReason = createElement("div", "font-size:11px;color:#713f12;line-height:1.4;");
+                                    recReason.textContent = rec.reasoning;
+                                    recAlert.appendChild(recReason);
+                                }
+
+                                if (rec.suggestedRating && state[k] && state[k].options) {
+                                    var btnApplyRec = createElement("button", "align-self:flex-start;padding:3px 8px;background:#fde047;border:1px solid #ca8a04;border-radius:4px;font-size:11px;color:#713f12;cursor:pointer;font-weight:600;margin-top:2px;");
+                                    btnApplyRec.textContent = "Apply \"" + rec.suggestedRating + "\" to Form";
+                                    (function(itemKey, suggestedVal){
+                                        addListener(btnApplyRec, "click", function(){
+                                            var s = state[itemKey];
+                                            if (!s || !s.options) return;
+                                            var foundOpt = s.options.find(function(o){
+                                                return o.label.toLowerCase().includes(suggestedVal.toLowerCase()) || suggestedVal.toLowerCase().includes(o.label.toLowerCase());
+                                            });
+                                            if (foundOpt) {
+                                                s.sel = foundOpt.id;
+                                                s.selIndex = s.options.indexOf(foundOpt);
+                                                if (s.refreshUI) s.refreshUI();
+                                                updateLiveScore();
+                                                showToast("Applied " + foundOpt.label + " to rubric!", false);
+                                            }
+                                        });
+                                    })(k, rec.suggestedRating);
+                                    recAlert.appendChild(btnApplyRec);
+                                }
+
+                                itBox.appendChild(recAlert);
+                            }
+
+                            lineItemsCard.appendChild(itBox);
                         });
-                        resDiv.appendChild(recCard);
+
+                        resDiv.appendChild(lineItemsCard);
                     }
 
                     // Processed Feedback Summary
@@ -2951,18 +3012,15 @@
                 if (cached.userAiInstructions) {
                     if (typeof cached.userAiInstructions === 'object') {
                         if (cached.userAiInstructions.general) aiInstructions.general = cached.userAiInstructions.general;
-                        if (cached.userAiInstructions.defaultItem) aiInstructions.defaultItem = cached.userAiInstructions.defaultItem;
                         if (cached.userAiInstructions.items) aiInstructions.items = cached.userAiInstructions.items;
                     } else if (typeof cached.userAiInstructions === 'string' && cached.userAiInstructions.trim()) {
                         try {
                             var parsedCachedInstr = JSON.parse(cached.userAiInstructions);
                             if (parsedCachedInstr.general) aiInstructions.general = parsedCachedInstr.general;
-                            if (parsedCachedInstr.defaultItem) aiInstructions.defaultItem = parsedCachedInstr.defaultItem;
                             if (parsedCachedInstr.items) aiInstructions.items = parsedCachedInstr.items;
                         } catch(e) {}
                     }
                     storage.set('ai_gen_instr', aiInstructions.general);
-                    storage.set('ai_item_instr', aiInstructions.defaultItem);
                     storage.set('ai_per_item_instr', JSON.stringify(aiInstructions.items || {}));
                 }
                 if (cached.qaName) currentQaDisplayName = cached.qaName;
@@ -3050,18 +3108,15 @@
                             if (data.userAiInstructions) {
                                 if (typeof data.userAiInstructions === 'object') {
                                     if (data.userAiInstructions.general) aiInstructions.general = data.userAiInstructions.general;
-                                    if (data.userAiInstructions.defaultItem) aiInstructions.defaultItem = data.userAiInstructions.defaultItem;
                                     if (data.userAiInstructions.items) aiInstructions.items = data.userAiInstructions.items;
                                 } else if (typeof data.userAiInstructions === 'string' && data.userAiInstructions.trim()) {
                                     try {
                                         var parsedDataInstr = JSON.parse(data.userAiInstructions);
                                         if (parsedDataInstr.general) aiInstructions.general = parsedDataInstr.general;
-                                        if (parsedDataInstr.defaultItem) aiInstructions.defaultItem = parsedDataInstr.defaultItem;
                                         if (parsedDataInstr.items) aiInstructions.items = parsedDataInstr.items;
                                     } catch(e) {}
                                 }
                                 storage.set('ai_gen_instr', aiInstructions.general);
-                                storage.set('ai_item_instr', aiInstructions.defaultItem);
                                 storage.set('ai_per_item_instr', JSON.stringify(aiInstructions.items || {}));
                             }
                             if (data.qaName) currentQaDisplayName = data.qaName;
