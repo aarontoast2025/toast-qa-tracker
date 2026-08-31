@@ -2,8 +2,8 @@
     if (document.getElementById('qa-modal-overlay')) return;
     console.log("Toast QA Tracker: Initializing...");
 
-    // Default configuration
-    var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbyI2cDSGLZokRPesN_f-LmdSp2YLXzY3aXYpyrq2_Kzh9_vYCQOsyQtw0L-7wwHQ3lFEQ/exec';
+    // Default configuration (empty by default so system asks on first setup; no hardcoded stale sheet)
+    var DEFAULT_API_URL = '';
     var DEFAULT_API_TOKEN = 'toast_qa_bookmarklet_2026';
     var DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 
@@ -26,9 +26,9 @@
     };
 
     var normalizeApiUrl = function(input) {
-        if (!input) return DEFAULT_API_URL;
+        if (!input) return DEFAULT_API_URL || '';
         var val = String(input).trim();
-        if (!val) return DEFAULT_API_URL;
+        if (!val) return DEFAULT_API_URL || '';
         val = val.split('?')[0].split('#')[0].trim();
         if (val.startsWith('http://') || val.startsWith('https://')) {
             if (val.indexOf('/macros/s/') !== -1 && !val.endsWith('/exec') && !val.endsWith('/dev')) {
@@ -2660,6 +2660,136 @@
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
+    // --- Connection Setup Modal ("Ask First" when URL is not configured) ---
+    var showConnectModal = function(onConnected) {
+        if (document.getElementById('qa-connect-overlay')) return;
+
+        var cOverlay = createElement("div", sOverlay + "; z-index:100003; pointer-events:auto; display:flex; justify-content:center; align-items:flex-start; padding-top:40px; padding-bottom:20px; overflow-y:auto; background:rgba(15,23,42,0.6);");
+        cOverlay.id = 'qa-connect-overlay';
+
+        var cModal = createElement("div", "background:white;border-radius:8px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);width:90%;max-width:480px;height:auto;max-height:85vh;display:flex;flex-direction:column;cursor:default;user-select:auto;pointer-events:auto;position:relative;border:1px solid #cbd5e1;overflow:hidden;");
+
+        var cHeader = createElement("div", sHeader + "; cursor:grab; border-radius:8px 8px 0 0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 18px; flex-shrink:0;");
+        cHeader.innerHTML = "<span style='font-size:15px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;'>🔌 <span>Connect Toast QA Tracker</span></span>";
+
+        var cClose = createElement("span", "cursor:pointer;font-size:20px;color:#94a3b8;line-height:1;font-weight:400;padding:2px 6px;border-radius:4px;transition:all 0.15s");
+        cClose.textContent = "×";
+        addListener(cClose, "mouseenter", function(){ cClose.style.color = "#ef4444"; cClose.style.background = "#fee2e2"; });
+        addListener(cClose, "mouseleave", function(){ cClose.style.color = "#94a3b8"; cClose.style.background = "transparent"; });
+        addListener(cClose, "click", function(){
+            cOverlay.remove();
+        });
+        cHeader.appendChild(cClose);
+
+        makeDraggable(cModal, cHeader);
+
+        var cBody = createElement("div", "padding:18px 20px;display:flex;flex-direction:column;gap:14px;");
+
+        var cNotice = createElement("div", "background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:10px 12px;color:#1e40af;font-size:12px;line-height:1.4;display:flex;align-items:flex-start;gap:8px;");
+        cNotice.innerHTML = "<span style='font-size:16px'>⚙️</span><div><strong>QA Tracker Setup</strong><br>Please enter your team's Google Apps Script Web App URL to connect to your QA database.</div>";
+        cBody.appendChild(cNotice);
+
+        var grpUrl = createElement("div");
+        var lblUrl = createElement("label", sLabel);
+        lblUrl.innerHTML = "<span>Google Apps Script Web App URL</span> <span style='color:#ef4444'>*</span>";
+        grpUrl.appendChild(lblUrl);
+
+        var inpUrl = createElement("input", sInput);
+        inpUrl.placeholder = "https://script.google.com/macros/s/.../exec";
+        inpUrl.value = API_BASE_URL || storage.get('api_url', '') || '';
+
+        var wrapUrl = createIconFieldWrapper("🌐", inpUrl, true);
+        grpUrl.appendChild(wrapUrl);
+
+        var helpUrl = createElement("div", "font-size:11px;color:#64748b;margin-top:4px;");
+        helpUrl.textContent = "Provided by your QA Tracker Developer / Admin (from Apps Script Deploy > Web app).";
+        grpUrl.appendChild(helpUrl);
+        cBody.appendChild(grpUrl);
+
+        var cStatus = createElement("div", "font-size:12px;font-weight:500;min-height:16px;display:none;");
+        cBody.appendChild(cStatus);
+
+        var cFooter = createElement("div", sFooter);
+        var btnConnect = createElement("button", sBtnGenerate);
+        btnConnect.textContent = "Connect to Database";
+        btnConnect.style.cssText = "padding:8px 18px;border:none;background:#2563eb;color:white;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600;box-shadow:0 1px 3px rgba(37,99,235,0.3);";
+
+        var doConnect = function() {
+            var rawVal = inpUrl.value.trim();
+            if (!rawVal) {
+                cStatus.style.display = "block";
+                cStatus.style.color = "#ef4444";
+                cStatus.textContent = "Please enter the Web App URL.";
+                return;
+            }
+            var targetUrl = normalizeApiUrl(rawVal);
+            if (!targetUrl || targetUrl.indexOf('/macros/s/') === -1) {
+                cStatus.style.display = "block";
+                cStatus.style.color = "#ef4444";
+                cStatus.textContent = "Invalid URL. Must be a Google Apps Script Web App URL (/exec).";
+                return;
+            }
+
+            btnConnect.disabled = true;
+            btnConnect.textContent = "Connecting...";
+            cStatus.style.display = "block";
+            cStatus.style.color = "#2563eb";
+            cStatus.textContent = "Connecting and fetching QA accounts...";
+
+            var testUrl = targetUrl + (targetUrl.indexOf('?') === -1 ? '?' : '&') +
+                          'api=1&action=get_init_data&token=' + encodeURIComponent(API_TOKEN);
+
+            fetch(testUrl)
+                .then(function(res){ return res.json(); })
+                .then(function(data){
+                    if (!data || !data.success) {
+                        throw new Error((data && data.error) ? data.error : "Connection failed");
+                    }
+
+                    API_BASE_URL = targetUrl;
+                    storage.set('api_url', targetUrl);
+                    idb.set('cached_payload', data);
+                    storage.set('last_sync_ts', '');
+
+                    allRubrics = (data.rubrics && data.rubrics.length > 0) ? data.rubrics : [DEFAULT_FALLBACK_RUBRIC];
+                    globalAssignments = data.assignments || [];
+                    globalFeedbackTags = data.feedbackChips || [];
+                    globalFeedbackGeneral = data.feedbackGeneral || [];
+                    globalUsers = data.users || [];
+                    if (data.evalTypes && Array.isArray(data.evalTypes)) globalEvalTypes = data.evalTypes;
+                    if (data.geminiModels && Array.isArray(data.geminiModels)) globalGeminiModels = data.geminiModels;
+
+                    showToast("Connected! Found " + (data.users ? data.users.length : 0) + " QA accounts.", false);
+                    cOverlay.remove();
+
+                    if (typeof onConnected === 'function') {
+                        onConnected();
+                    } else {
+                        checkAndSyncData(true);
+                    }
+                })
+                .catch(function(err){
+                    btnConnect.disabled = false;
+                    btnConnect.textContent = "Connect to Database";
+                    cStatus.style.display = "block";
+                    cStatus.style.color = "#ef4444";
+                    cStatus.textContent = "Connection failed: " + err.message;
+                });
+        };
+
+        addListener(btnConnect, "click", doConnect);
+        addListener(inpUrl, "keydown", function(e){
+            if (e.key === 'Enter') doConnect();
+        });
+
+        cFooter.appendChild(btnConnect);
+        cModal.appendChild(cHeader);
+        cModal.appendChild(cBody);
+        cModal.appendChild(cFooter);
+        cOverlay.appendChild(cModal);
+        setTimeout(function(){ inpUrl.focus(); }, 100);
+    };
+
     // --- Settings Modal ---
     var showSettingsModal = function(isMandatory) {
         if (document.getElementById('qa-settings-modal-overlay')) return;
@@ -2725,36 +2855,7 @@
         grpEmail.appendChild(wrapEmail);
         pBody.appendChild(grpEmail);
 
-        // 2. Web App URL (Google Apps Script deployment full URL, with in-field icon 🌐)
-        var grpApiUrl = createElement("div");
-        var lblApiUrl = createElement("label", sLabel);
-        lblApiUrl.textContent = "Google Apps Script Web App URL";
-        grpApiUrl.appendChild(lblApiUrl);
-
-        var inpApiUrl = createElement("input", sInput);
-        inpApiUrl.placeholder = DEFAULT_API_URL;
-        var savedApiUrl = storage.get('api_url', '');
-        inpApiUrl.value = savedApiUrl || '';
-
-        var wrapApiUrl = createIconFieldWrapper("🌐", inpApiUrl, true);
-        grpApiUrl.appendChild(wrapApiUrl);
-
-        var apiUrlHelp = createElement("div", "display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:11px;color:#94a3b8;");
-        var apiUrlHelpText = createElement("span");
-        apiUrlHelpText.textContent = "Paste full /exec Web App URL. Leave blank for default.";
-        var btnResetApiUrl = createElement("span", "cursor:pointer;color:#2563eb;text-decoration:underline;user-select:none;");
-        btnResetApiUrl.textContent = "Reset to default";
-        addListener(btnResetApiUrl, "click", function(){
-            inpApiUrl.value = "";
-            showToast("Cleared custom URL (click Save Settings to apply)", false);
-        });
-
-        apiUrlHelp.appendChild(apiUrlHelpText);
-        apiUrlHelp.appendChild(btnResetApiUrl);
-        grpApiUrl.appendChild(apiUrlHelp);
-        pBody.appendChild(grpApiUrl);
-
-        // 3. Gemini API Key (with 🔑 in-field icon and ✏️ unlock/edit button)
+        // 2. Gemini API Key (with 🔑 in-field icon and ✏️ unlock/edit button)
         var grpKey = createElement("div");
         var lblKey = createElement("label", sLabel);
         lblKey.textContent = "Your Gemini API Key (from Google AI Studio)";
@@ -2767,9 +2868,6 @@
             ? globalUsers.find(function(u){ return (u.email || '').toLowerCase() === openingEmail; })
             : null;
         var initialKey = openingUserObj ? (openingUserObj.geminiApiKey || '') : '';
-        if (!inpApiUrl.value && openingUserObj && openingUserObj.webAppUrl) {
-            inpApiUrl.value = openingUserObj.webAppUrl;
-        }
 
         var inpKey = createElement("input", sInput);
         inpKey.placeholder = "Paste your AIzaSy... key";
@@ -2840,9 +2938,6 @@
                 var chosenUser = globalUsers.find(function(u){ return (u.email || '').toLowerCase() === chosenEmail; });
                 if (chosenUser) {
                     if (chosenUser.firstName) qaFirstName = chosenUser.firstName;
-                    if (chosenUser.webAppUrl) {
-                        inpApiUrl.value = chosenUser.webAppUrl;
-                    }
                     applyKeyToUI(chosenUser.geminiApiKey || '');
                     if (chosenUser.geminiModel) {
                         selModel.value = chosenUser.geminiModel;
@@ -2895,6 +2990,22 @@
         grpAiInstr.appendChild(txtSettingsAiInstr);
         pBody.appendChild(grpAiInstr);
 
+        // Backend Connection Info & Change Link
+        var connInfo = createElement("div", "margin-top:6px;padding-top:10px;border-top:1px dashed #e2e8f0;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#94a3b8;");
+        var connText = createElement("span");
+        connText.textContent = "Backend: " + (API_BASE_URL ? "Connected" : "Not configured");
+        var btnChangeConn = createElement("span", "cursor:pointer;color:#2563eb;text-decoration:underline;user-select:none;");
+        btnChangeConn.textContent = "Change Web App URL";
+        addListener(btnChangeConn, "click", function(){
+            pOverlay.remove();
+            showConnectModal(function(){
+                showSettingsModal(isMandatory);
+            });
+        });
+        connInfo.appendChild(connText);
+        connInfo.appendChild(btnChangeConn);
+        pBody.appendChild(connInfo);
+
         // Footer
         var pFooter = createElement("div", sFooter);
         var pBtnSave = createElement("button", sBtnGenerate);
@@ -2908,23 +3019,8 @@
                 return;
             }
 
-            var newUrlRaw = inpApiUrl.value.trim();
-            var newApiUrl = normalizeApiUrl(newUrlRaw);
-            var isUrlChanged = (newApiUrl !== API_BASE_URL);
-
             pBtnSave.disabled = true;
             pBtnSave.textContent = "Saving...";
-
-            if (isUrlChanged) {
-                API_BASE_URL = newApiUrl;
-                if (newUrlRaw) {
-                    storage.set('api_url', newApiUrl);
-                } else {
-                    storage.set('api_url', '');
-                }
-                idb.delete('cached_payload');
-                storage.set('last_sync_ts', '');
-            }
 
             QA_EMAIL = newEmail;
             var matchedUser = globalUsers.find(function(u){ return (u.email || '').toLowerCase() === newEmail.toLowerCase(); });
@@ -3073,7 +3169,9 @@
                 if (!cached) {
                     renderNoAgentSelectedPlaceholder();
                 }
-                showToast("API URL error", true);
+                showConnectModal(function(){
+                    checkAndSyncData(true);
+                });
                 return;
             }
 
@@ -3138,7 +3236,7 @@
                                 GEMINI_MODEL = data.userGeminiModel;
                                 storage.set('gemini_model', GEMINI_MODEL);
                             }
-                            if (data.userWebAppUrl) {
+                            if (data.userWebAppUrl && !storage.get('api_url', '')) {
                                 var loadedUrl = normalizeApiUrl(data.userWebAppUrl);
                                 API_BASE_URL = loadedUrl;
                                 storage.set('api_url', loadedUrl);
