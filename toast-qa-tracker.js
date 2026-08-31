@@ -26,17 +26,132 @@
     };
 
     var normalizeApiUrl = function(input) {
-        if (!input) return DEFAULT_API_URL;
+        if (!input) return DEFAULT_API_URL || '';
         var val = String(input).trim();
-        if (!val) return DEFAULT_API_URL;
+        if (!val) return DEFAULT_API_URL || '';
         val = val.split('?')[0].split('#')[0].trim();
         if (val.startsWith('http://') || val.startsWith('https://')) {
-            if (val.indexOf('/macros/s/') !== -1 && !val.endsWith('/exec') && !val.endsWith('/dev')) {
+            if ((val.indexOf('/macros/s/') !== -1 || val.indexOf('/a/macros/') !== -1) && !val.endsWith('/exec') && !val.endsWith('/dev')) {
                 val = val.replace(/\/?$/, '/exec');
             }
             return val;
         }
         return 'https://script.google.com/macros/s/' + val + '/exec';
+    };
+
+    // Universal JSONP transport for cross-origin domain-restricted Google Apps Script endpoints
+    var jsonpRequest = function(url, params) {
+        return new Promise(function(resolve, reject) {
+            var cbName = 'toast_cb_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+            var script = document.createElement('script');
+            var isHandled = false;
+
+            var timeoutId = setTimeout(function(){
+                if (!isHandled) {
+                    isHandled = true;
+                    cleanup();
+                    reject(new Error("Connection timed out. Please verify your Google Apps Script Web App URL and ensure you are logged into your Toast Google account."));
+                }
+            }, 20000);
+
+            var cleanup = function() {
+                try {
+                    delete window[cbName];
+                } catch(e) {
+                    window[cbName] = undefined;
+                }
+                if (script.parentNode) script.parentNode.removeChild(script);
+            };
+
+            window[cbName] = function(data) {
+                if (!isHandled) {
+                    isHandled = true;
+                    clearTimeout(timeoutId);
+                    cleanup();
+                    resolve(data);
+                }
+            };
+
+            script.onerror = function() {
+                if (!isHandled) {
+                    isHandled = true;
+                    clearTimeout(timeoutId);
+                    cleanup();
+                    reject(new Error("Failed to connect to Google Apps Script. Please ensure you are logged into your Toast Google account in this browser."));
+                }
+            };
+
+            var queryParams = [];
+            queryParams.push('callback=' + encodeURIComponent(cbName));
+            if (params) {
+                Object.keys(params).forEach(function(k){
+                    var v = params[k];
+                    if (v !== undefined && v !== null) {
+                        var valStr = (typeof v === 'object') ? JSON.stringify(v) : String(v);
+                        queryParams.push(encodeURIComponent(k) + '=' + encodeURIComponent(valStr));
+                    }
+                });
+            }
+
+            var sep = url.indexOf('?') === -1 ? '?' : '&';
+            script.src = url + sep + queryParams.join('&');
+            (document.head || document.documentElement).appendChild(script);
+        });
+    };
+
+    var apiGet = function(url, params) {
+        params = params || {};
+        if (!params.token && API_TOKEN) params.token = API_TOKEN;
+        if (!params.api) params.api = '1';
+
+        var queryParts = [];
+        Object.keys(params).forEach(function(k){
+            var v = params[k];
+            if (v !== undefined && v !== null) {
+                var valStr = (typeof v === 'object') ? JSON.stringify(v) : String(v);
+                queryParts.push(encodeURIComponent(k) + '=' + encodeURIComponent(valStr));
+            }
+        });
+        var fullUrl = url + (url.indexOf('?') === -1 ? '?' : '&') + queryParts.join('&');
+
+        // For Google Workspace domain URLs (/a/macros/), use JSONP directly to bypass CORS 302
+        if (url.indexOf('/a/macros/') !== -1) {
+            return jsonpRequest(url, params);
+        }
+
+        return fetch(fullUrl, { mode: 'cors', credentials: 'include' })
+            .then(function(res){
+                if (!res.ok && res.status !== 0) throw new Error("HTTP " + res.status);
+                return res.json();
+            })
+            .catch(function(err){
+                console.warn("Fetch failed, falling back to JSONP: " + err.message);
+                return jsonpRequest(url, params);
+            });
+    };
+
+    var apiPost = function(url, payload) {
+        payload = payload || {};
+        if (!payload.token && API_TOKEN) payload.token = API_TOKEN;
+
+        // For Google Workspace domain URLs (/a/macros/), use JSONP GET directly
+        if (url.indexOf('/a/macros/') !== -1) {
+            return jsonpRequest(url, payload);
+        }
+
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(payload)
+        })
+        .then(function(res){
+            if (!res.ok && res.status !== 0) throw new Error("HTTP " + res.status);
+            return res.json();
+        })
+        .catch(function(err){
+            console.warn("POST fetch failed, falling back to JSONP GET: " + err.message);
+            return jsonpRequest(url, payload);
+        });
     };
 
     var API_BASE_URL = normalizeApiUrl(storage.get('api_url', DEFAULT_API_URL));
@@ -88,19 +203,16 @@
             aiInstructions: aiInstructions
         };
 
-        return fetch(API_BASE_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify(payload)
-        }).then(function(res){ return res.json(); }).then(function(res){
-            if (res && res.success) {
-                showToast("Instructions saved to database!", false);
-            } else {
+        return apiPost(API_BASE_URL, payload)
+            .then(function(res){
+                if (res && res.success) {
+                    showToast("Instructions saved to database!", false);
+                } else {
+                    showToast("Instructions saved locally", false);
+                }
+            }).catch(function(err){
                 showToast("Instructions saved locally", false);
-            }
-        }).catch(function(err){
-            showToast("Instructions saved locally", false);
-        });
+            });
     };
 
     // --- Styles ---
@@ -1916,20 +2028,19 @@
             // Check if this assignment is already completed
             if (asg && asg.status === 'Completed') {
                 showLoading("Loading completed evaluation for " + (selectedOpt.dataset.agentName || "agent") + "...");
-                var url = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
-                          'api=1&action=check_existing&token=' + encodeURIComponent(API_TOKEN) +
-                          '&assignment_id=' + encodeURIComponent(asg.id);
-                fetch(url)
-                    .then(function(res){ return res.json(); })
-                    .then(function(resData){
-                        if (resData.success && resData.data) {
-                            populateEvaluationRecord(resData.data, asg);
-                        } else if (inpInteractionId.value) {
-                            checkExistingRecord();
-                        }
-                    })
-                    .catch(function(err){ console.warn("Load completed asg error:", err); })
-                    .finally(function(){ hideLoading(); });
+                apiGet(API_BASE_URL, {
+                    action: 'check_existing',
+                    assignment_id: asg.id
+                })
+                .then(function(resData){
+                    if (resData.success && resData.data) {
+                        populateEvaluationRecord(resData.data, asg);
+                    } else if (inpInteractionId.value) {
+                        checkExistingRecord();
+                    }
+                })
+                .catch(function(err){ console.warn("Load completed asg error:", err); })
+                .finally(function(){ hideLoading(); });
             } else {
                 // Fresh/Pending assignment: Reset rubric and scoresheet to clean state with default feedback templates
                 duplicateWarningBox.style.display = "none";
@@ -1994,28 +2105,28 @@
             if (!cachedMonth && API_BASE_URL) {
                 // Fetch this month on-demand (past or future)
                 showLoading("Fetching assignments for " + selDate + "...");
-                var url = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
-                          'api=1&action=get_month_data&token=' + encodeURIComponent(API_TOKEN) +
-                          '&year=' + year + '&month=' + (month + 1) +
-                          '&qa_email=' + encodeURIComponent(QA_EMAIL);
-                fetch(url)
-                    .then(function(res){ return res.json(); })
-                    .then(function(mRes){
-                        if (mRes.success && Array.isArray(mRes.assignments)) {
-                            idb.set('month_' + monthKey, mRes.assignments);
-                            // Merge into globalAssignments
-                            mRes.assignments.forEach(function(ma){
-                                if (!globalAssignments.some(function(ga){ return ga.id === ma.id; })) {
-                                    globalAssignments.push(ma);
-                                }
-                            });
-                            updateAgentDropdown();
-                            handleAgentSelectionChange(selAgent.selectedOptions[0]);
-                            showToast("Loaded assignments for " + selDate, false);
-                        }
-                    })
-                    .catch(function(){})
-                    .finally(function(){ hideLoading(); });
+                apiGet(API_BASE_URL, {
+                    action: 'get_month_data',
+                    year: year,
+                    month: month + 1,
+                    qa_email: QA_EMAIL
+                })
+                .then(function(mRes){
+                    if (mRes.success && Array.isArray(mRes.assignments)) {
+                        idb.set('month_' + monthKey, mRes.assignments);
+                        // Merge into globalAssignments
+                        mRes.assignments.forEach(function(ma){
+                            if (!globalAssignments.some(function(ga){ return ga.id === ma.id; })) {
+                                globalAssignments.push(ma);
+                            }
+                        });
+                        updateAgentDropdown();
+                        handleAgentSelectionChange(selAgent.selectedOptions[0]);
+                        showToast("Loaded assignments for " + selDate, false);
+                    }
+                })
+                .catch(function(){})
+                .finally(function(){ hideLoading(); });
             }
         });
     });
@@ -2120,12 +2231,7 @@
             }
         };
 
-        return fetch(API_BASE_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify(payload)
-        })
-        .then(function(res){ return res.json(); })
+        return apiPost(API_BASE_URL, payload)
         .then(function(data){
             if(data.success) {
                 existingRecordId = data.evaluationId || data.submission_id;
@@ -2452,24 +2558,22 @@
         }
         if(!API_BASE_URL) return;
 
-        var url = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
-                  'api=1&action=check_existing&token=' + encodeURIComponent(API_TOKEN) +
-                  (iId ? ('&interaction_id=' + encodeURIComponent(iId)) : '') +
-                  (asgId ? ('&assignment_id=' + encodeURIComponent(asgId)) : '');
-
-        fetch(url)
-            .then(function(res){ return res.json(); })
-            .then(function(result){
-                if(result.success && result.data) {
-                    populateEvaluationRecord(result.data);
-                } else {
-                    duplicateWarningBox.style.display = "none";
-                    duplicateWarningBox.innerHTML = "";
-                }
-            })
-            .catch(function(err){
-                console.warn("checkExistingRecord error:", err);
-            });
+        apiGet(API_BASE_URL, {
+            action: 'check_existing',
+            interaction_id: iId || '',
+            assignment_id: asgId || ''
+        })
+        .then(function(result){
+            if(result.success && result.data) {
+                populateEvaluationRecord(result.data);
+            } else {
+                duplicateWarningBox.style.display = "none";
+                duplicateWarningBox.innerHTML = "";
+            }
+        })
+        .catch(function(err){
+            console.warn("checkExistingRecord error:", err);
+        });
     };
 
     addListener(inpInteractionId, 'blur', checkExistingRecord);
@@ -2741,16 +2845,57 @@
 
         var apiUrlHelp = createElement("div", "display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:11px;color:#94a3b8;");
         var apiUrlHelpText = createElement("span");
-        apiUrlHelpText.textContent = "Paste full /exec Web App URL. Leave blank for default.";
-        var btnResetApiUrl = createElement("span", "cursor:pointer;color:#2563eb;text-decoration:underline;user-select:none;");
-        btnResetApiUrl.textContent = "Reset to default";
-        addListener(btnResetApiUrl, "click", function(){
-            inpApiUrl.value = "";
-            showToast("Cleared custom URL (click Save Settings to apply)", false);
+        apiUrlHelpText.textContent = "Paste full /exec Web App URL.";
+        var btnGroupApi = createElement("div", "display:flex;gap:10px;align-items:center;");
+        var btnTestApiUrl = createElement("span", "cursor:pointer;color:#2563eb;font-weight:600;text-decoration:underline;user-select:none;");
+        btnTestApiUrl.textContent = "Test & Load Accounts";
+        addListener(btnTestApiUrl, "click", function(){
+            var testUrl = normalizeApiUrl(inpApiUrl.value.trim());
+            if (!testUrl) {
+                showToast("Please enter a Web App URL first", true);
+                return;
+            }
+            btnTestApiUrl.textContent = "Testing...";
+            apiGet(testUrl, { action: 'get_init_data', qa_email: selEmail.value || QA_EMAIL })
+                .then(function(data){
+                    btnTestApiUrl.textContent = "Test & Load Accounts";
+                    if (!data.success) throw new Error(data.error || "Failed to load data");
+                    if (data.users && Array.isArray(data.users) && data.users.length > 0) {
+                        globalUsers = data.users;
+                        selEmail.innerHTML = "";
+                        var optPlaceholder = createElement("option");
+                        optPlaceholder.value = "";
+                        optPlaceholder.textContent = "-- Select your QA Account --";
+                        selEmail.appendChild(optPlaceholder);
+                        data.users.forEach(function(u){
+                            var opt = createElement("option");
+                            opt.value = (u.email || '').toLowerCase();
+                            opt.textContent = (u.name || formatEmailToName(u.email)) + " (" + u.email + ")";
+                            if (opt.value === (QA_EMAIL || '').toLowerCase()) opt.selected = true;
+                            selEmail.appendChild(opt);
+                        });
+                        showToast("Connected! Found " + data.users.length + " QA accounts.", false);
+                    } else {
+                        showToast("Connected to Apps Script! (No QA users found)", false);
+                    }
+                })
+                .catch(function(err){
+                    btnTestApiUrl.textContent = "Test & Load Accounts";
+                    showToast("Connection test failed: " + err.message, true);
+                });
         });
 
+        var btnResetApiUrl = createElement("span", "cursor:pointer;color:#64748b;text-decoration:underline;user-select:none;");
+        btnResetApiUrl.textContent = "Reset";
+        addListener(btnResetApiUrl, "click", function(){
+            inpApiUrl.value = "";
+            showToast("Cleared custom URL", false);
+        });
+
+        btnGroupApi.appendChild(btnTestApiUrl);
+        btnGroupApi.appendChild(btnResetApiUrl);
         apiUrlHelp.appendChild(apiUrlHelpText);
-        apiUrlHelp.appendChild(btnResetApiUrl);
+        apiUrlHelp.appendChild(btnGroupApi);
         grpApiUrl.appendChild(apiUrlHelp);
         pBody.appendChild(grpApiUrl);
 
@@ -2967,12 +3112,7 @@
                 aiInstructions: aiInstructions
             };
 
-            fetch(API_BASE_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify(savePayload)
-            })
-            .then(function(res){ return res.json(); })
+            apiPost(API_BASE_URL, savePayload)
             .then(function(resData){
                 if (resData && !resData.success) {
                     throw new Error(resData.message || resData.error || "Save failed");
@@ -3078,11 +3218,7 @@
             }
 
             // 2. Timestamp check comparing rubrics, feedback, assignments, and SETTINGS
-            var syncUrl = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
-                          'api=1&action=check_sync&token=' + encodeURIComponent(API_TOKEN);
-
-            fetch(syncUrl)
-                .then(function(res){ return res.json(); })
+            apiGet(API_BASE_URL, { action: 'check_sync' })
                 .then(function(syncData){
                     if(!syncData.success) throw new Error(syncData.error || "Sync check failed");
 
@@ -3105,14 +3241,12 @@
 
                     // 3. Bulk fetch ALL data at once from backend
                     showLoading("Bulk syncing Toast QA data with Google Sheets...");
-                    var initUrl = API_BASE_URL + (API_BASE_URL.indexOf('?') === -1 ? '?' : '&') +
-                                  'api=1&action=get_init_data&token=' + encodeURIComponent(API_TOKEN) +
-                                  '&qa_email=' + encodeURIComponent(QA_EMAIL);
-
-                    fetch(initUrl)
-                        .then(function(res){ return res.json(); })
-                        .then(function(data){
-                            if(!data.success) throw new Error(data.error || "Failed to fetch data");
+                    apiGet(API_BASE_URL, {
+                        action: 'get_init_data',
+                        qa_email: QA_EMAIL
+                    })
+                    .then(function(data){
+                        if(!data.success) throw new Error(data.error || "Failed to fetch data");
 
                             // Store ALL data bulk payload in IndexedDB for persistent local storage
                             idb.set('cached_payload', data);
