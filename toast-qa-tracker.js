@@ -25,7 +25,21 @@
         }
     };
 
-    var API_BASE_URL = DEFAULT_API_URL;
+    var normalizeApiUrl = function(input) {
+        if (!input) return DEFAULT_API_URL;
+        var val = String(input).trim();
+        if (!val) return DEFAULT_API_URL;
+        val = val.split('?')[0].split('#')[0].trim();
+        if (val.startsWith('http://') || val.startsWith('https://')) {
+            if (val.indexOf('/macros/s/') !== -1 && !val.endsWith('/exec') && !val.endsWith('/dev')) {
+                val = val.replace(/\/?$/, '/exec');
+            }
+            return val;
+        }
+        return 'https://script.google.com/macros/s/' + val + '/exec';
+    };
+
+    var API_BASE_URL = normalizeApiUrl(storage.get('api_url', DEFAULT_API_URL));
     var API_TOKEN = storage.get('api_token', DEFAULT_API_TOKEN);
     var GEMINI_API_KEY = storage.get('gemini_key', '');
     var GEMINI_MODEL = storage.get('gemini_model', DEFAULT_GEMINI_MODEL);
@@ -2711,7 +2725,36 @@
         grpEmail.appendChild(wrapEmail);
         pBody.appendChild(grpEmail);
 
-        // 2. Gemini API Key (with 🔑 in-field icon and ✏️ unlock/edit button)
+        // 2. Web App URL (Google Apps Script deployment full URL, with in-field icon 🌐)
+        var grpApiUrl = createElement("div");
+        var lblApiUrl = createElement("label", sLabel);
+        lblApiUrl.textContent = "Google Apps Script Web App URL";
+        grpApiUrl.appendChild(lblApiUrl);
+
+        var inpApiUrl = createElement("input", sInput);
+        inpApiUrl.placeholder = DEFAULT_API_URL;
+        var savedApiUrl = storage.get('api_url', '');
+        inpApiUrl.value = savedApiUrl || '';
+
+        var wrapApiUrl = createIconFieldWrapper("🌐", inpApiUrl, true);
+        grpApiUrl.appendChild(wrapApiUrl);
+
+        var apiUrlHelp = createElement("div", "display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:11px;color:#94a3b8;");
+        var apiUrlHelpText = createElement("span");
+        apiUrlHelpText.textContent = "Paste full /exec Web App URL. Leave blank for default.";
+        var btnResetApiUrl = createElement("span", "cursor:pointer;color:#2563eb;text-decoration:underline;user-select:none;");
+        btnResetApiUrl.textContent = "Reset to default";
+        addListener(btnResetApiUrl, "click", function(){
+            inpApiUrl.value = "";
+            showToast("Cleared custom URL (click Save Settings to apply)", false);
+        });
+
+        apiUrlHelp.appendChild(apiUrlHelpText);
+        apiUrlHelp.appendChild(btnResetApiUrl);
+        grpApiUrl.appendChild(apiUrlHelp);
+        pBody.appendChild(grpApiUrl);
+
+        // 3. Gemini API Key (with 🔑 in-field icon and ✏️ unlock/edit button)
         var grpKey = createElement("div");
         var lblKey = createElement("label", sLabel);
         lblKey.textContent = "Your Gemini API Key (from Google AI Studio)";
@@ -2724,6 +2767,9 @@
             ? globalUsers.find(function(u){ return (u.email || '').toLowerCase() === openingEmail; })
             : null;
         var initialKey = openingUserObj ? (openingUserObj.geminiApiKey || '') : '';
+        if (!inpApiUrl.value && openingUserObj && openingUserObj.webAppUrl) {
+            inpApiUrl.value = openingUserObj.webAppUrl;
+        }
 
         var inpKey = createElement("input", sInput);
         inpKey.placeholder = "Paste your AIzaSy... key";
@@ -2794,6 +2840,9 @@
                 var chosenUser = globalUsers.find(function(u){ return (u.email || '').toLowerCase() === chosenEmail; });
                 if (chosenUser) {
                     if (chosenUser.firstName) qaFirstName = chosenUser.firstName;
+                    if (chosenUser.webAppUrl) {
+                        inpApiUrl.value = chosenUser.webAppUrl;
+                    }
                     applyKeyToUI(chosenUser.geminiApiKey || '');
                     if (chosenUser.geminiModel) {
                         selModel.value = chosenUser.geminiModel;
@@ -2859,8 +2908,23 @@
                 return;
             }
 
+            var newUrlRaw = inpApiUrl.value.trim();
+            var newApiUrl = normalizeApiUrl(newUrlRaw);
+            var isUrlChanged = (newApiUrl !== API_BASE_URL);
+
             pBtnSave.disabled = true;
             pBtnSave.textContent = "Saving...";
+
+            if (isUrlChanged) {
+                API_BASE_URL = newApiUrl;
+                if (newUrlRaw) {
+                    storage.set('api_url', newApiUrl);
+                } else {
+                    storage.set('api_url', '');
+                }
+                idb.delete('cached_payload');
+                storage.set('last_sync_ts', '');
+            }
 
             QA_EMAIL = newEmail;
             var matchedUser = globalUsers.find(function(u){ return (u.email || '').toLowerCase() === newEmail.toLowerCase(); });
@@ -2879,6 +2943,7 @@
             storage.set('ai_gen_instr', newInstr);
 
             if (matchedUser) {
+                matchedUser.webAppUrl = API_BASE_URL;
                 matchedUser.geminiApiKey = GEMINI_API_KEY;
                 matchedUser.geminiModel = GEMINI_MODEL;
                 matchedUser.aiInstructions = aiInstructions;
@@ -2896,6 +2961,7 @@
                 action: 'save_user_gemini_config',
                 token: API_TOKEN,
                 qaEmail: QA_EMAIL,
+                webAppUrl: API_BASE_URL,
                 geminiApiKey: GEMINI_API_KEY,
                 geminiModel: GEMINI_MODEL,
                 aiInstructions: aiInstructions
@@ -2914,11 +2980,13 @@
                 showToast("Settings saved to database & profile!", false);
                 return idb.get('cached_payload').then(function(cached){
                     if (cached) {
+                        cached.userWebAppUrl = API_BASE_URL;
                         cached.userGeminiApiKey = GEMINI_API_KEY;
                         cached.userGeminiModel = GEMINI_MODEL;
                         if (cached.users && Array.isArray(cached.users)) {
                             var uInCached = cached.users.find(function(u){ return (u.email || '').toLowerCase() === QA_EMAIL.toLowerCase(); });
                             if (uInCached) {
+                                uInCached.webAppUrl = API_BASE_URL;
                                 uInCached.geminiApiKey = GEMINI_API_KEY;
                                 uInCached.geminiModel = GEMINI_MODEL;
                                 uInCached.aiInstructions = aiInstructions;
@@ -3069,6 +3137,11 @@
                             if (data.userGeminiModel) {
                                 GEMINI_MODEL = data.userGeminiModel;
                                 storage.set('gemini_model', GEMINI_MODEL);
+                            }
+                            if (data.userWebAppUrl) {
+                                var loadedUrl = normalizeApiUrl(data.userWebAppUrl);
+                                API_BASE_URL = loadedUrl;
+                                storage.set('api_url', loadedUrl);
                             }
                             if (data.userAiInstructions) {
                                 if (typeof data.userAiInstructions === 'object') {
