@@ -52,27 +52,14 @@ javascript:(function(){var s=document.createElement('script');s.src='https://raw
 ---
 
 ## ⚙️ Bookmarklet Setup
-
 1. Open any Stella Connect QA review page.
 2. Click your **Toast QA Tracker** bookmark.
-3. **First-Time Connection (If prompted):**
-   - If the bookmarklet is not yet connected on this machine, a **Connect Toast QA Tracker** prompt appears.
-   - Paste your team's **Bookmarklet API Web App URL** (provided by your Developer / Admin) and click **Connect to Database**.
-4. **Configure Settings:**
-   - Select your **QA Account** from the dropdown (loaded directly from your team's Google Sheet).
-   - Enter your personal **Gemini API Key** (from [Google AI Studio](https://aistudio.google.com/)).
-   - Select your preferred **Gemini Model**.
+3. Click the **⚙️ (Settings)** icon in the top right of the modal.
+4. Enter:
+   - **Apps Script API URL**: Your Bookmarklet API Deployment URL (configured with "Who has access: Anyone")
+   - **Your QA Email**: Your email address
+   - **Gemini API Key**: Your personal Gemini API key (from Google AI Studio)
 5. Click **Save Settings**.
-
----
-
-## 🛠️ Developer Configuration (QA Tracker Web App)
-
-* **Google Sheet Binding:**
-  * When the Apps Script project is created from within your Google Sheet via **Extensions > Apps Script**, the system automatically binds to the active spreadsheet with **zero configuration** (`SpreadsheetApp.getActiveSpreadsheet()`).
-  * If running as a standalone Apps Script project, configure `SPREADSHEET_ID` in **Project Settings > Script Properties** or in the QA Tracker Web App under **Settings > Developer**.
-* **Centralized Bookmarklet Settings:**
-  * In the QA Tracker Web App, navigate to **Settings > Bookmarklet** to record and manage the active `BOOKMARKLET_API_URL`.
 
 ---
 
