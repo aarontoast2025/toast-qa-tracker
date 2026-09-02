@@ -977,6 +977,8 @@
             var checkedKeys = allKeys.filter(function(k){ return state[k] && state[k].checked; });
             var targetKeys = checkedKeys.length > 0 ? checkedKeys : allKeys;
 
+            var cleanFbText = function(t) { return (t || "").replace(/\s*Source:[\s\S]*$/i, "").trim(); };
+
             var itemsPayload = targetKeys.map(function(k){
                 var s = state[k];
                 if (!s) return null;
@@ -989,11 +991,37 @@
                     return o.label + (o.points !== undefined ? " (" + o.points + " pts)" : "");
                 }).join(" | ");
 
+                var optionsDetailed = (s.options || []).map(function(o, optIdx){
+                    var genFeedback = globalFeedbackGeneral.find(function(f){
+                        var matchRubric = !f.rubricId || !currentRubric || !currentRubric.id || String(f.rubricId) === String(currentRubric.id);
+                        var matchSec = (f.sectionIndex === s.secIdx || f.section_index === s.secIdx);
+                        var matchItem = (f.itemIndex === s.itemIdx || f.item_index === s.itemIdx);
+                        var matchOpt = (f.optionIndex === optIdx || f.option_index === optIdx);
+                        return matchRubric && matchSec && matchItem && matchOpt;
+                    });
+                    var optionChips = globalFeedbackTags.filter(function(t){
+                        return (t.sectionIndex === s.secIdx || t.section_index === s.secIdx) &&
+                               (t.itemIndex === s.itemIdx || t.item_index === s.itemIdx) &&
+                               (t.optionIndex === optIdx || t.option_index === optIdx);
+                    }).map(function(t){
+                        return cleanFbText(t.feedbackText || t.feedback_text || t.buttonLabel || t.button_label || '');
+                    }).filter(Boolean);
+
+                    return {
+                        label: o.label,
+                        points: o.points !== undefined ? o.points : 0,
+                        isCorrect: o.isCorrect === true,
+                        guidelineTemplate: genFeedback ? cleanFbText(genFeedback.feedbackText || genFeedback.feedback_text) : "",
+                        availableCoachingChips: optionChips
+                    };
+                });
+
                 return {
                     key: k,
                     question: s.question,
                     section: s.sectionName || s.groupName,
                     optionsAvailable: optionsSummary,
+                    allRatingOptionsWithGuidelines: optionsDetailed,
                     userSelectedRating: selOpt ? selOpt.label : "N/A",
                     isCorrect: selOpt ? (selOpt.isCorrect === true) : null,
                     draftFeedback: draftFb,
@@ -1031,9 +1059,10 @@
                 "   - PARAGRAPH FORMAT: Every feedback entry MUST be written as a complete, cohesive paragraph in professional English. Do NOT use bullet points or meta-prefixes like 'Feedback:'.\n" +
                 "3. AI DISSENTING OBSERVATIONS FOR RECONSIDERATION (IN 'lineItemReconsiderations'):\n" +
                 "   - Perform an independent audit of the interaction transcript and notes against the QA guidelines.\n" +
+                "   - Review all rating options and their coaching guidelines provided under 'allRatingOptionsWithGuidelines'.\n" +
                 "   - If the evidence in the interaction indicates a standard DIFFERENT from the QA's userSelectedRating:\n" +
-                "     * DO NOT replace or contradict the processed feedback in rule 2.\n" +
-                "     * INSTEAD, record your independent finding under that item's key in 'lineItemReconsiderations'. Provide the suggestedRating and detailed reasoning.\n" +
+                "     * DO NOT replace or contradict the processed feedback in rule 2 (the QA's selected rating remains authoritative for 'feedbacks').\n" +
+                "     * INSTEAD, record your independent finding under that item's key in 'lineItemReconsiderations'. Provide the suggestedRating and detailed reasoning, aligning your reasoning with the official coaching criteria and guideline defined for that suggested option.\n" +
                 "     * If you agree with the QA's rating, do NOT include the item in 'lineItemReconsiderations'.\n\n" +
                 "Return ONLY a strictly valid JSON object matching this schema:\n" +
                 "{\n" +
@@ -1955,7 +1984,7 @@
                 if (matchedAsg.evaluationType && selEvalType) {
                     selEvalType.value = matchedAsg.evaluationType;
                 }
-                if (matchedAsg.status === 'Completed') {
+                if (matchedAsg.status === 'Completed' || matchedAsg.status === 'Partial') {
                     handleAgentSelectionChange(selAgent.selectedOptions[0]);
                 }
                 return true;
@@ -1990,7 +2019,8 @@
                 opt.value = "asg:" + a.id;
                 var agentLabel = resolveName(a);
                 var isDone = (a.status === 'Completed');
-                opt.textContent = isDone ? ("✓ " + agentLabel) : agentLabel;
+                var isPartial = (a.status === 'Partial');
+                opt.textContent = isDone ? ("✓ " + agentLabel) : (isPartial ? ("⏳ " + agentLabel + " (Partial)") : agentLabel);
                 opt.dataset.rubricId = a.rubricId || "";
                 opt.dataset.agentName = agentLabel;
                 opt.dataset.agentEmail = a.agentEmail || "";
@@ -2025,9 +2055,10 @@
             if (rubricId) switchRubricById(rubricId);
             if (asgEvalType && selEvalType) selEvalType.value = asgEvalType;
 
-            // Check if this assignment is already completed
-            if (asg && asg.status === 'Completed') {
-                showLoading("Loading completed evaluation for " + (selectedOpt.dataset.agentName || "agent") + "...");
+            // Check if this assignment is already completed or saved as partial
+            if (asg && (asg.status === 'Completed' || asg.status === 'Partial')) {
+                var isPartial = (asg.status === 'Partial');
+                showLoading("Loading " + (isPartial ? "partial" : "completed") + " evaluation for " + (selectedOpt.dataset.agentName || "agent") + "...");
                 apiGet(API_BASE_URL, {
                     action: 'check_existing',
                     assignment_id: asg.id
@@ -2132,7 +2163,8 @@
     });
 
     // --- Save to Google Sheets API ---
-    var saveRecord = function() {
+    var saveRecord = function(targetStatus) {
+        targetStatus = targetStatus || 'Completed';
         if (!selectedAssignmentId && (!selAgent || !selAgent.value)) {
             showToast("Please select an Agent first!", true);
             return Promise.reject(new Error("No agent selected"));
@@ -2227,6 +2259,7 @@
                 assignmentId: selectedAssignmentId || '',
                 score: finalScorePercentage,
                 details: details,
+                status: targetStatus,
                 pageUrl: window.location.href
             }
         };
@@ -2235,10 +2268,10 @@
         .then(function(data){
             if(data.success) {
                 existingRecordId = data.evaluationId || data.submission_id;
-                // Mark assignment completed locally
+                // Mark assignment status locally
                 if (selectedAssignmentId) {
                     var asg = globalAssignments.find(function(a){ return a.id === selectedAssignmentId; });
-                    if (asg) asg.status = 'Completed';
+                    if (asg) asg.status = targetStatus;
                     updateAgentDropdown();
                 }
                 return true;
@@ -2269,9 +2302,20 @@
         var qaName = record.qaName || record.qaEmail || "another QA";
         var score = (record.score !== undefined && record.score !== null && record.score !== "") ? (" • Score: " + record.score + "%") : "";
 
-        // Display Duplicate Warning Banner
+        // Display Duplicate Warning or Partial Banner
+        var isPartialRecord = (asg && asg.status === 'Partial') || (record && (record.status === 'Partial' || record.assignmentStatus === 'Partial'));
         duplicateWarningBox.style.display = "block";
-        duplicateWarningBox.innerHTML = "⚠️ <strong>Existing Completed Evaluation</strong><br>Evaluated on " + (evalDate || "previous date") + " by " + qaName + score + ". All details loaded below.";
+        if (isPartialRecord) {
+            duplicateWarningBox.style.background = "#fef9c3";
+            duplicateWarningBox.style.borderColor = "#fde047";
+            duplicateWarningBox.style.color = "#854d0e";
+            duplicateWarningBox.innerHTML = "⏳ <strong>Saved Partial Evaluation</strong><br>Saved on " + (evalDate || "previous date") + " by " + qaName + score + ". All details loaded below — you can continue editing and submit when ready.";
+        } else {
+            duplicateWarningBox.style.background = "#fffbeb";
+            duplicateWarningBox.style.borderColor = "#fef3c7";
+            duplicateWarningBox.style.color = "#92400e";
+            duplicateWarningBox.innerHTML = "⚠️ <strong>Existing Completed Evaluation</strong><br>Evaluated on " + (evalDate || "previous date") + " by " + qaName + score + ". All details loaded below.";
+        }
         showToast("ℹ️ Loaded existing evaluation data from database", false);
 
         // 1. Auto-populate Date of Evaluation to match completed entry
@@ -2614,17 +2658,17 @@
         var processNext = function() {
             if(index >= targetKeys.length) {
                 if(saveToDb) {
-                    saveRecord().then(function(){
+                    saveRecord('Completed').then(function(){
                         activeBtn.textContent = originalText;
                         [btnGenerate, btnGenerateOnly, btnSaveOnly, btnCancel, btnGenToggle].forEach(function(b){
                             b.disabled = false;
                             b.style.opacity = "1";
                             b.style.cursor = "pointer";
                         });
-                        showToast("Generated and Saved to Google Sheets!", false);
+                        showToast("Generated and Submitted to Google Sheets!", false);
                         setTimeout(function(){ overlay.remove(); }, 1500);
                     }).catch(function(e){
-                        showToast("Generated, but save failed: " + e.message, true);
+                        showToast("Generated, but submission failed: " + e.message, true);
                         activeBtn.textContent = originalText;
                         [btnGenerate, btnGenerateOnly, btnSaveOnly, btnCancel, btnGenToggle].forEach(function(b){
                             b.disabled = false;
@@ -2702,24 +2746,24 @@
     addListener(btnCancel, "click", function(){ overlay.remove(); });
 
     var btnSaveOnly = createElement("button", sBtnGenerate);
-    btnSaveOnly.textContent = "Save to Sheets";
+    btnSaveOnly.textContent = "Save";
     btnSaveOnly.style.backgroundColor = "#059669";
     addListener(btnSaveOnly, "click", function(){
         btnSaveOnly.disabled = true;
         btnSaveOnly.textContent = "Saving...";
-        saveRecord().then(function(){
-            showToast("Saved Successfully to Sheets!", false);
+        saveRecord('Partial').then(function(){
+            showToast("Saved as Partial to Sheets!", false);
         }).catch(function(e){
             showToast(e.message, true);
         }).finally(function(){
             btnSaveOnly.disabled = false;
-            btnSaveOnly.textContent = "Save to Sheets";
+            btnSaveOnly.textContent = "Save";
         });
     });
 
     var genDropdownContainer = createElement("div", "position:relative;display:flex;align-items:stretch");
     var btnGenerate = createElement("button", sBtnGenerate);
-    btnGenerate.textContent = "Generate & Save";
+    btnGenerate.textContent = "Generate & Submit";
     btnGenerate.style.borderRadius = "5px 0 0 5px";
     btnGenerate.style.margin = "0";
 
