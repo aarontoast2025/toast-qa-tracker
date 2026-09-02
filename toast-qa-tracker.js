@@ -4,7 +4,6 @@
 
     // Default configuration
     var DEFAULT_API_URL = 'https://script.google.com/a/macros/toasttab.com/s/AKfycbzlPOPv6XatB7n56GnFZJsZWpjn9_pgnlbgYyuFgLQgjaXY827AwxBlyR7njYqCcnjCng/exec';
-    var DEFAULT_QA_EMAIL = 'aaron.arela@toasttab.com';
     var DEFAULT_API_TOKEN = 'toast_qa_bookmarklet_2026';
     var DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 
@@ -229,16 +228,11 @@
         });
     };
 
-    var rawSavedUrl = storage.get('api_url', '');
-    if (!rawSavedUrl || rawSavedUrl.indexOf('AKfycbyI2cDSGLZokRPesN_f') !== -1) {
-        rawSavedUrl = DEFAULT_API_URL;
-        storage.set('api_url', DEFAULT_API_URL);
-    }
-    var API_BASE_URL = normalizeApiUrl(rawSavedUrl);
+    var API_BASE_URL = normalizeApiUrl(storage.get('api_url', DEFAULT_API_URL));
     var API_TOKEN = storage.get('api_token', DEFAULT_API_TOKEN);
     var GEMINI_API_KEY = storage.get('gemini_key', '');
     var GEMINI_MODEL = storage.get('gemini_model', DEFAULT_GEMINI_MODEL);
-    var QA_EMAIL = storage.get('qa_email', '') || DEFAULT_QA_EMAIL;
+    var QA_EMAIL = storage.get('qa_email', '');
 
     var state = {};
     var allRubrics = [DEFAULT_FALLBACK_RUBRIC];
