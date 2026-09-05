@@ -283,7 +283,8 @@
     var globalUsers = [];
     var globalAssignments = [];
     var selectedAssignmentId = "";
-    var globalEvalTypes = [];
+    var DEFAULT_EVALUATION_TYPES = ['Manual Audit', 'Validation Review', 'Delphi Eval', 'Chat', 'New Hire'];
+    var globalEvalTypes = DEFAULT_EVALUATION_TYPES.slice();
     var DEFAULT_GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'];
     var storedModels = null;
     try {
@@ -1440,22 +1441,42 @@
     var updateEvalTypesDropdown = function(selectedVal) {
         var prevVal = selectedVal || selEvalType.value || "";
         selEvalType.innerHTML = "";
-        if (!globalEvalTypes || globalEvalTypes.length === 0) {
-            var optPlaceholder = createElement("option");
-            optPlaceholder.value = "";
-            optPlaceholder.textContent = "Evaluation Type";
-            selEvalType.appendChild(optPlaceholder);
-            return;
-        }
-        globalEvalTypes.forEach(function(t){
+
+        var types = (Array.isArray(globalEvalTypes) && globalEvalTypes.length > 0)
+            ? globalEvalTypes.slice()
+            : DEFAULT_EVALUATION_TYPES.slice();
+
+        // Ensure all default evaluation types are present in list
+        DEFAULT_EVALUATION_TYPES.forEach(function(dt){
+            if (!types.some(function(t){ return t.toLowerCase() === dt.toLowerCase(); })) {
+                types.push(dt);
+            }
+        });
+
+        types.forEach(function(t){
             var opt = createElement("option");
             opt.value = t;
             opt.textContent = t;
-            if (prevVal && t.toLowerCase() === prevVal.toLowerCase()) opt.selected = true;
+            if (prevVal && t.toLowerCase() === prevVal.toLowerCase()) {
+                opt.selected = true;
+            }
             selEvalType.appendChild(opt);
         });
-        if (!selEvalType.value && globalEvalTypes.length > 0) {
-            selEvalType.value = globalEvalTypes[0];
+
+        if (prevVal) {
+            var hasVal = Array.from(selEvalType.options).some(function(o){ return o.value.toLowerCase() === prevVal.toLowerCase(); });
+            if (!hasVal) {
+                var optExtra = createElement("option");
+                optExtra.value = prevVal;
+                optExtra.textContent = prevVal;
+                optExtra.selected = true;
+                selEvalType.appendChild(optExtra);
+            } else {
+                var matched = Array.from(selEvalType.options).find(function(o){ return o.value.toLowerCase() === prevVal.toLowerCase(); });
+                if (matched) matched.selected = true;
+            }
+        } else if (selEvalType.options.length > 0) {
+            selEvalType.value = selEvalType.options[0].value;
         }
     };
     updateEvalTypesDropdown();
@@ -2129,9 +2150,9 @@
                 if (matchedAsg.rubricId) {
                     switchRubricById(matchedAsg.rubricId);
                 }
-                var asgEt = matchedAsg.evaluationType || matchedAsg.evaluationsType || matchedAsg.evalType;
+                var asgEt = matchedAsg.evaluationType || matchedAsg.evaluation_type || matchedAsg.evaluationsType || matchedAsg.evalType || "Manual Audit";
                 if (asgEt && selEvalType) {
-                    selEvalType.value = asgEt;
+                    updateEvalTypesDropdown(asgEt);
                 }
                 if (matchedAsg.status === 'Completed' || matchedAsg.status === 'Partial') {
                     handleAgentSelectionChange(selAgent.selectedOptions[0]);
@@ -2174,7 +2195,7 @@
                 opt.dataset.agentName = agentLabel;
                 opt.dataset.agentEmail = a.agentEmail || "";
                 opt.dataset.asgId = a.id;
-                opt.dataset.evalType = a.evaluationType || a.evaluationsType || a.evalType || "Standard";
+                opt.dataset.evalType = a.evaluationType || a.evaluation_type || a.evaluationsType || a.evalType || "Manual Audit";
                 opt.dataset.status = a.status || "Pending";
 
                 if (selectedAssignmentId && a.id === selectedAssignmentId) {
@@ -2211,10 +2232,10 @@
             selectedAssignmentId = selectedOpt.dataset.asgId || "";
             var asg = globalAssignments.find(function(a){ return a.id === selectedAssignmentId; });
             var rubricId = selectedOpt.dataset.rubricId || (asg && asg.rubricId) || "";
-            var asgEvalType = selectedOpt.dataset.evalType || (asg && (asg.evaluationType || asg.evaluationsType || asg.evalType)) || "Standard";
+            var asgEvalType = selectedOpt.dataset.evalType || (asg && (asg.evaluationType || asg.evaluation_type || asg.evaluationsType || asg.evalType)) || "Manual Audit";
 
             if (rubricId) switchRubricById(rubricId);
-            if (asgEvalType && selEvalType) selEvalType.value = asgEvalType;
+            if (asgEvalType && selEvalType) updateEvalTypesDropdown(asgEvalType);
 
             // Check if this assignment is already completed or saved as partial
             if (asg && (asg.status === 'Completed' || asg.status === 'Partial')) {
@@ -2431,7 +2452,7 @@
                 agentEmail: (selectedAsg && selectedAsg.agentEmail) || '',
                 agentSnapshot: agentSnap,
                 qaName: resolvedQaName,
-                evaluationType: (selEvalType && selEvalType.value) ? selEvalType.value : ((selectedAsg && (selectedAsg.evaluationType || selectedAsg.evaluationsType || selectedAsg.evalType)) || 'Standard'),
+                evaluationType: (selEvalType && selEvalType.value) ? selEvalType.value : ((selectedAsg && (selectedAsg.evaluationType || selectedAsg.evaluation_type || selectedAsg.evaluationsType || selectedAsg.evalType)) || 'Manual Audit'),
                 callAniDnis: selAni.value ? selAni.value.trim() : "",
                 caseNo: inpCaseNo.value.trim(),
                 callDuration: inpDuration.value.trim(),
@@ -2462,7 +2483,7 @@
                 agent_email: (selectedAsg && selectedAsg.agentEmail) || (selectedAsg && selectedAsg.agent_email) || '',
                 agent_name: resolvedAgentName,
                 score: finalScorePercentage,
-                evaluation_type: (selEvalType && selEvalType.value) ? selEvalType.value : ((selectedAsg && (selectedAsg.evaluationType || selectedAsg.evaluationsType || selectedAsg.evalType)) || 'Standard'),
+                evaluation_type: (selEvalType && selEvalType.value) ? selEvalType.value : ((selectedAsg && (selectedAsg.evaluationType || selectedAsg.evaluation_type || selectedAsg.evaluationsType || selectedAsg.evalType)) || 'Manual Audit'),
                 rubric_id: (currentRubric && currentRubric.id) || '',
                 call_duration: inpDuration.value.trim(),
                 case_no: inpCaseNo.value.trim(),
