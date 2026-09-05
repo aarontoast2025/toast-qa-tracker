@@ -1746,6 +1746,7 @@
 
     // --- Empty State Placeholder (when no agent is selected) ---
     var renderNoAgentSelectedPlaceholder = function() {
+        selectedAssignmentId = "";
         contentContainer.querySelectorAll('.rubric-section').forEach(function(el){ el.remove(); });
         state = {};
 
@@ -2147,16 +2148,7 @@
                 selectedAssignmentId = matchedAsg.id;
                 selAgent.value = "asg:" + matchedAsg.id;
 
-                if (matchedAsg.rubricId) {
-                    switchRubricById(matchedAsg.rubricId);
-                }
-                var asgEt = matchedAsg.evaluationType || matchedAsg.evaluation_type || matchedAsg.evaluationsType || matchedAsg.evalType || "Manual Audit";
-                if (asgEt && selEvalType) {
-                    updateEvalTypesDropdown(asgEt);
-                }
-                if (matchedAsg.status === 'Completed' || matchedAsg.status === 'Partial') {
-                    handleAgentSelectionChange(selAgent.selectedOptions[0]);
-                }
+                handleAgentSelectionChange(selAgent.selectedOptions[0]);
                 return true;
             }
         }
@@ -2234,7 +2226,7 @@
             var rubricId = selectedOpt.dataset.rubricId || (asg && asg.rubricId) || "";
             var asgEvalType = selectedOpt.dataset.evalType || (asg && (asg.evaluationType || asg.evaluation_type || asg.evaluationsType || asg.evalType)) || "Manual Audit";
 
-            if (rubricId) switchRubricById(rubricId);
+            switchRubricById(rubricId || null);
             if (asgEvalType && selEvalType) updateEvalTypesDropdown(asgEvalType);
 
             // Check if this assignment is already completed or saved as partial
@@ -3043,8 +3035,8 @@
     var footer = createElement("div", sFooter);
 
     scoreBadge = createElement("div");
-    scoreBadge.style.cssText = "margin-right:auto;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:6px;transition:all 0.2s;background:#dcfce7;color:#15803d;border:1px solid #86efac";
-    scoreBadge.innerHTML = "<span>Score: <strong>100.00%</strong></span>";
+    scoreBadge.style.cssText = "margin-right:auto;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:6px;transition:all 0.2s;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1";
+    scoreBadge.innerHTML = "<span>Score: <strong>--</strong></span>";
     footer.appendChild(scoreBadge);
 
     var btnCancel = createElement("button", sBtnCancel);
@@ -3113,6 +3105,9 @@
     modal.appendChild(footer);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+
+    // Render initial placeholder immediately so modal never opens with blank rubric section
+    renderNoAgentSelectedPlaceholder();
 
     // --- Settings Modal ---
     var showSettingsModal = function(isMandatory) {
@@ -3579,7 +3574,10 @@
                     }
 
                     updateAgentDropdown();
-                    autoSelectAssignmentAndDate();
+                    var matchedAuto = autoSelectAssignmentAndDate();
+                    if (!matchedAuto || !selAgent.value) {
+                        renderNoAgentSelectedPlaceholder();
+                    }
                     console.log("Toast QA: Loaded " + globalAssignments.length + " assignments from Supabase.");
                     return true;
                 }
@@ -3697,6 +3695,10 @@
                 }
                 updateLiveScore();
                 hideLoading();
+            } else {
+                if (!selAgent.value) {
+                    renderNoAgentSelectedPlaceholder();
+                }
             }
 
             // 2. Fetch fresh Settings, Templates, and Assignments directly from Supabase immediately!
