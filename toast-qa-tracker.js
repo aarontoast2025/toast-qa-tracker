@@ -3194,10 +3194,10 @@
         grpKey.appendChild(keyHelp);
         pBody.appendChild(grpKey);
 
-        // 3. Dynamic Gemini Model Combobox (with manual typing, instant adding, and delete per option)
+        // 3. Dynamic Gemini Model Combobox (with manual typing, Enter-to-save, and delete per option)
         var grpModel = createElement("div", "position:relative;");
         var lblModel = createElement("label", sLabel);
-        lblModel.innerHTML = "<span>Gemini Model</span> <span style='font-size:11px;color:#64748b;font-weight:normal;'>(select, type custom, or 🗑️ delete)</span>";
+        lblModel.innerHTML = "<span>Gemini Model</span> <span style='font-size:11px;color:#64748b;font-weight:normal;'>(select, or type & press Enter to save, 🗑️ delete)</span>";
         grpModel.appendChild(lblModel);
 
         var wrapModel = createElement("div", "position:relative;display:flex;align-items:center;width:100%;");
@@ -3208,33 +3208,52 @@
         inpModel.placeholder = "e.g. gemini-2.5-flash";
         inpModel.value = GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
         inpModel.style.paddingLeft = "36px";
-        inpModel.style.paddingRight = "58px";
+        inpModel.style.paddingRight = "34px";
         inpModel.style.boxSizing = "border-box";
         inpModel.style.width = "100%";
         inpModel.style.height = "36px";
         inpModel.style.margin = "0";
 
         // Toggle caret button
-        var btnToggleDropdown = createElement("button", "position:absolute;right:28px;background:transparent;border:none;cursor:pointer;padding:4px 6px;color:#64748b;font-size:11px;display:inline-flex;align-items:center;height:100%;");
+        var btnToggleDropdown = createElement("button", "position:absolute;right:8px;background:transparent;border:none;cursor:pointer;padding:6px 8px;color:#64748b;font-size:11px;display:inline-flex;align-items:center;justify-content:center;height:100%;transition:color 0.15s;");
         btnToggleDropdown.type = "button";
         btnToggleDropdown.innerHTML = "▼";
-        btnToggleDropdown.title = "Show available models";
+        btnToggleDropdown.title = "Toggle model list";
 
-        // Quick Add button (+)
-        var btnAddModel = createElement("button", "position:absolute;right:6px;background:#e0e7ff;color:#3730a3;border:none;border-radius:4px;cursor:pointer;width:20px;height:22px;font-size:14px;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;");
-        btnAddModel.type = "button";
-        btnAddModel.textContent = "+";
-        btnAddModel.title = "Add typed model to options";
+        addListener(btnToggleDropdown, "mouseenter", function(){ btnToggleDropdown.style.color = "#1e293b"; });
+        addListener(btnToggleDropdown, "mouseleave", function(){ btnToggleDropdown.style.color = "#64748b"; });
 
         wrapModel.appendChild(iconModel);
         wrapModel.appendChild(inpModel);
         wrapModel.appendChild(btnToggleDropdown);
-        wrapModel.appendChild(btnAddModel);
         grpModel.appendChild(wrapModel);
 
         // Floating dropdown menu panel
-        var dropdownMenu = createElement("div", "position:absolute;left:0;right:0;top:100%;margin-top:3px;background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 6px 16px rgba(0,0,0,0.12);max-height:170px;overflow-y:auto;z-index:9999;display:none;padding:4px 0;scrollbar-width:thin;");
+        var dropdownMenu = createElement("div", "position:absolute;left:0;right:0;background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.18);max-height:160px;overflow-y:auto;z-index:99999;display:none;padding:4px 0;scrollbar-width:thin;");
         grpModel.appendChild(dropdownMenu);
+
+        var updateDropdownPosition = function() {
+            var bodyRect = pBody.getBoundingClientRect();
+            var wrapRect = wrapModel.getBoundingClientRect();
+            var spaceBelow = bodyRect.bottom - wrapRect.bottom;
+            var spaceAbove = wrapRect.top - bodyRect.top;
+
+            if (spaceBelow < 180 && spaceAbove > 130) {
+                // Open upwards above the input so it's never cut off by the modal footer
+                dropdownMenu.style.top = "auto";
+                dropdownMenu.style.bottom = "100%";
+                dropdownMenu.style.marginTop = "0";
+                dropdownMenu.style.marginBottom = "4px";
+                dropdownMenu.style.boxShadow = "0 -8px 20px rgba(0,0,0,0.15)";
+            } else {
+                // Open downwards below the input
+                dropdownMenu.style.bottom = "auto";
+                dropdownMenu.style.top = "100%";
+                dropdownMenu.style.marginBottom = "0";
+                dropdownMenu.style.marginTop = "4px";
+                dropdownMenu.style.boxShadow = "0 8px 20px rgba(0,0,0,0.15)";
+            }
+        };
 
         var saveModelListToSupabase = function() {
             var sKey = SUPABASE_KEY || storage.get('supabase_key', DEFAULT_SUPABASE_KEY);
@@ -3261,12 +3280,13 @@
                 globalGeminiModels.push(m);
                 storage.set('gemini_models', JSON.stringify(globalGeminiModels));
                 saveModelListToSupabase();
-                showToast("Added " + m + " to models list!", false);
+                showToast("Saved " + m + " to database!", false);
             }
             inpModel.value = m;
             GEMINI_MODEL = m;
             renderModelOptions();
             dropdownMenu.style.display = "none";
+            btnToggleDropdown.innerHTML = "▼";
         };
 
         var renderModelOptions = function() {
@@ -3274,7 +3294,7 @@
             var currentVal = inpModel.value.trim();
 
             globalGeminiModels.forEach(function(m){
-                var itemRow = createElement("div", "display:flex;align-items:center;justify-content:space-between;padding:7px 12px;font-size:12px;cursor:pointer;transition:background 0.15s;");
+                var itemRow = createElement("div", "display:flex;align-items:center;justify-content:space-between;padding:7px 12px;font-size:12px;cursor:pointer;transition:background 0.15s;border-bottom:1px solid #f8fafc;");
                 var isCurrent = (m.toLowerCase() === currentVal.toLowerCase());
                 if (isCurrent) {
                     itemRow.style.background = "#eff6ff";
@@ -3282,10 +3302,10 @@
                     itemRow.style.color = "#1d4ed8";
                 }
 
-                var itemLabel = createElement("span", "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;");
+                var itemLabel = createElement("span", "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;");
                 itemLabel.textContent = (isCurrent ? "✓ " : "  ") + m;
 
-                var btnDelete = createElement("span", "cursor:pointer;color:#94a3b8;padding:2px 6px;border-radius:3px;font-size:12px;transition:all 0.15s;margin-left:8px;");
+                var btnDelete = createElement("span", "cursor:pointer;color:#94a3b8;padding:2px 6px;border-radius:4px;font-size:12px;transition:all 0.15s;flex-shrink:0;");
                 btnDelete.innerHTML = "🗑️";
                 btnDelete.title = "Delete " + m;
 
@@ -3305,10 +3325,10 @@
                         showToast("Cannot delete the only remaining model.", true);
                         return;
                     }
-                    globalGeminiModels = globalGeminiModels.filter(function(mod){ return mod !== m; });
+                    globalGeminiModels = globalGeminiModels.filter(function(mod){ return mod.toLowerCase() !== m.toLowerCase(); });
                     storage.set('gemini_models', JSON.stringify(globalGeminiModels));
 
-                    if (inpModel.value.trim() === m) {
+                    if (inpModel.value.trim().toLowerCase() === m.toLowerCase()) {
                         inpModel.value = globalGeminiModels[0];
                         GEMINI_MODEL = globalGeminiModels[0];
                     }
@@ -3329,6 +3349,7 @@
                     inpModel.value = m;
                     GEMINI_MODEL = m;
                     dropdownMenu.style.display = "none";
+                    btnToggleDropdown.innerHTML = "▼";
                 });
 
                 itemRow.appendChild(itemLabel);
@@ -3336,10 +3357,18 @@
                 dropdownMenu.appendChild(itemRow);
             });
 
-            // If user typed a custom model that doesn't exist yet, show option to add it
+            // If user typed a custom model that doesn't exist yet, show prompt to add it
             if (currentVal && !globalGeminiModels.some(function(m){ return m.toLowerCase() === currentVal.toLowerCase(); })) {
-                var addPromptRow = createElement("div", "padding:8px 12px;font-size:12px;cursor:pointer;background:#f8fafc;color:#2563eb;font-weight:600;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:6px;");
-                addPromptRow.innerHTML = "<span>+</span> <span>Add <strong>" + currentVal + "</strong></span>";
+                var addPromptRow = createElement("div", "padding:8px 12px;font-size:12px;cursor:pointer;background:#f0fdf4;color:#15803d;font-weight:600;border-top:1px solid #bbf7d0;display:flex;align-items:center;justify-content:space-between;transition:background 0.15s;");
+                var leftSpan = createElement("span");
+                leftSpan.textContent = "↵ Add \"" + currentVal + "\"";
+                var rightHint = createElement("span", "font-size:10px;font-weight:normal;color:#166534;margin-left:6px;");
+                rightHint.textContent = "(Press Enter)";
+                addPromptRow.appendChild(leftSpan);
+                addPromptRow.appendChild(rightHint);
+
+                addListener(addPromptRow, "mouseenter", function(){ addPromptRow.style.background = "#dcfce7"; });
+                addListener(addPromptRow, "mouseleave", function(){ addPromptRow.style.background = "#f0fdf4"; });
                 addListener(addPromptRow, "click", function(){
                     addCustomModel(currentVal);
                 });
@@ -3351,9 +3380,12 @@
             var willOpen = (show !== undefined) ? show : (dropdownMenu.style.display === "none");
             if (willOpen) {
                 renderModelOptions();
+                updateDropdownPosition();
                 dropdownMenu.style.display = "block";
+                btnToggleDropdown.innerHTML = "▲";
             } else {
                 dropdownMenu.style.display = "none";
+                btnToggleDropdown.innerHTML = "▼";
             }
         };
 
@@ -3377,22 +3409,22 @@
                 if (typed) {
                     addCustomModel(typed);
                 }
+            } else if (e.key === "Escape") {
+                dropdownMenu.style.display = "none";
+                btnToggleDropdown.innerHTML = "▼";
             }
         });
 
-        addListener(btnAddModel, "click", function(e){
-            e.stopPropagation();
-            var typed = inpModel.value.trim();
-            if (typed) {
-                addCustomModel(typed);
-            } else {
-                inpModel.focus();
+        addListener(pBody, "scroll", function(){
+            if (dropdownMenu.style.display === "block") {
+                updateDropdownPosition();
             }
         });
 
         addListener(document, "click", function(e){
             if (!grpModel.contains(e.target)) {
                 dropdownMenu.style.display = "none";
+                btnToggleDropdown.innerHTML = "▼";
             }
         });
 
