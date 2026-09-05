@@ -292,8 +292,8 @@
         if (rawStored) storedModels = JSON.parse(rawStored);
     } catch(e) {}
     var globalGeminiModels = (Array.isArray(storedModels) && storedModels.length > 0) ? storedModels : DEFAULT_GEMINI_MODELS.slice();
-    var currentQaDisplayName = "";
-    var qaFirstName = "";
+    var currentQaDisplayName = storage.get('qa_name', '');
+    var qaFirstName = currentQaDisplayName ? currentQaDisplayName.split(' ')[0] : "";
     var existingRecordId = null;
     var DEFAULT_GENERAL_INSTRUCTION = "Write feedback in concise, objective, and action-oriented paragraphs. Each feedback must be written as a complete paragraph in professional English. Incorporate specific context from the interaction (e.g. customer statements, troubleshooting steps, tool names, reference IDs, cutoff times). Rephrase and enrich the QA's draft feedback while strictly preserving the QA's rating direction (e.g. met, excelled, or missed). Always ground the feedback in what actually occurred in the interaction without inventing or hallucinating scenarios. If the QA marks a standard as met, affirm how the standard was achieved based on real interaction events. Never include meta-instructions, prefixes like 'Feedback:', or mention formatting guidelines in the output.";
 
@@ -318,6 +318,7 @@
             return supabaseFetch('personal_settings', 'POST', {
                 key: 'user_config',
                 value: {
+                    qa_name: currentQaDisplayName,
                     qa_email: QA_EMAIL,
                     gemini_key: GEMINI_API_KEY,
                     gemini_model: GEMINI_MODEL,
@@ -702,15 +703,16 @@
         });
     });
 
-    var btnAiTools = createElement("span");
-    btnAiTools.textContent = "🛠️";
-    btnAiTools.title = "AI Tools";
-    btnAiTools.style.cssText = "cursor:pointer;font-size:16px;padding:4px 6px;border-radius:4px;transition:background 0.2s;user-select:none";
-    addListener(btnAiTools, "mouseenter", function(){ btnAiTools.style.background = "rgba(0,0,0,0.06)"; });
-    addListener(btnAiTools, "mouseleave", function(){ btnAiTools.style.background = "transparent"; });
-
-    var aiToolsMenu = createElement("div");
-    aiToolsMenu.style.cssText = "position:absolute;top:100%;right:32px;background:white;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,0.12);display:none;flex-direction:column;min-width:180px;z-index:100001;margin-top:6px;overflow:hidden";
+    var btnChecker = createElement("span");
+    btnChecker.textContent = "🔍";
+    btnChecker.title = "Interaction Checker";
+    btnChecker.style.cssText = "cursor:pointer;font-size:16px;padding:4px 6px;border-radius:4px;transition:background 0.2s;user-select:none";
+    addListener(btnChecker, "mouseenter", function(){ btnChecker.style.background = "rgba(0,0,0,0.06)"; });
+    addListener(btnChecker, "mouseleave", function(){ btnChecker.style.background = "transparent"; });
+    addListener(btnChecker, "click", function(e){
+        e.stopPropagation();
+        showInteractionCheckerModal();
+    });
 
     var btnTools = createElement("span");
     btnTools.textContent = "⚙️";
@@ -722,23 +724,14 @@
     var toolsMenu = createElement("div");
     toolsMenu.style.cssText = "position:absolute;top:100%;right:0;background:white;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,0.12);display:none;flex-direction:column;min-width:160px;z-index:100001;margin-top:6px;overflow:hidden";
 
-    addListener(btnAiTools, "click", function(e){
-        e.stopPropagation();
-        var isVisible = aiToolsMenu.style.display === "flex";
-        aiToolsMenu.style.display = isVisible ? "none" : "flex";
-        toolsMenu.style.display = "none";
-    });
-
     addListener(btnTools, "click", function(e){
         e.stopPropagation();
         var isVisible = toolsMenu.style.display === "flex";
         toolsMenu.style.display = isVisible ? "none" : "flex";
-        aiToolsMenu.style.display = "none";
     });
 
     addListener(document, "click", function(){
         toolsMenu.style.display = "none";
-        aiToolsMenu.style.display = "none";
     });
 
     // --- AI Modal Helpers ---
@@ -1271,13 +1264,8 @@
                         resDiv.appendChild(sumCard);
                     }
 
-                    // Detailed Line Items Audit & AI Reconsiderations
+                    // Detailed Line Items Audit & AI Reconsiderations (Grouped by Section)
                     if (itemsPayload && itemsPayload.length > 0) {
-                        var lineItemsCard = createElement("div", "background:#ffffff;border:1px solid #e2e8f0;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:10px;");
-                        var lineItemsHeader = createElement("div", "font-weight:700;color:#1e293b;font-size:12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0;padding-bottom:6px;");
-                        lineItemsHeader.innerHTML = "<span>📝 Line Items Processed Feedback (" + itemsPayload.length + ")</span>";
-                        lineItemsCard.appendChild(lineItemsHeader);
-
                         var reconsiderationsMap = data.lineItemReconsiderations || {};
                         if (Array.isArray(data.reconsiderations)) {
                             data.reconsiderations.forEach(function(r){
@@ -1290,79 +1278,100 @@
                             });
                         }
 
-                        itemsPayload.forEach(function(it, idx){
-                            var k = it.key;
-                            var fb = (data.feedbacks && data.feedbacks[k]) ? data.feedbacks[k] : "";
-                            var rec = reconsiderationsMap[k];
-                            var isPos = it.isCorrect !== false && !it.userSelectedRating.toLowerCase().includes("missed");
-
-                            var itBox = createElement("div", "background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:6px;");
-                            
-                            var itTop = createElement("div", "display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;");
-                            var itTitle = createElement("div", "font-weight:600;font-size:12px;color:#1e293b;");
-                            itTitle.textContent = (idx + 1) + ". " + it.question + (it.section ? " (" + it.section + ")" : "");
-                            
-                            var badgeStyle = isPos ? "background:#dcfce7;color:#166534;border:1px solid #86efac;" : "background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;";
-                            var itBadge = createElement("span", "font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;" + badgeStyle);
-                            itBadge.textContent = it.userSelectedRating;
-                            
-                            itTop.appendChild(itTitle);
-                            itTop.appendChild(itBadge);
-                            itBox.appendChild(itTop);
-
-                            if (fb) {
-                                var fbBox = createElement("div", "font-size:12px;line-height:1.5;color:#334155;background:white;border:1px solid #cbd5e1;border-radius:5px;padding:8px 10px;white-space:pre-wrap;");
-                                fbBox.textContent = fb;
-                                itBox.appendChild(fbBox);
+                        // Group items by Section
+                        var secOrder = [];
+                        var secGroups = {};
+                        itemsPayload.forEach(function(it){
+                            var sName = it.section || "General";
+                            if (!secGroups[sName]) {
+                                secGroups[sName] = [];
+                                secOrder.push(sName);
                             }
-
-                            if (rec && (rec.reasoning || rec.suggestedRating)) {
-                                var recAlert = createElement("div", "background:#fefce8;border:1px solid #fde047;border-radius:5px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;margin-top:2px;");
-                                
-                                var recAlertHeader = createElement("div", "display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:#854d0e;");
-                                recAlertHeader.innerHTML = "<span>⚠️ AI Observation for Reconsideration</span>";
-                                if (rec.suggestedRating) {
-                                    var recSuggBadge = createElement("span", "background:#fef08a;color:#713f12;padding:1px 6px;border-radius:4px;border:1px solid #eab308;font-size:10px;font-weight:700;");
-                                    recSuggBadge.textContent = "Suggested: " + rec.suggestedRating;
-                                    recAlertHeader.appendChild(recSuggBadge);
-                                }
-                                recAlert.appendChild(recAlertHeader);
-
-                                if (rec.reasoning) {
-                                    var recReason = createElement("div", "font-size:11px;color:#713f12;line-height:1.4;");
-                                    recReason.textContent = rec.reasoning;
-                                    recAlert.appendChild(recReason);
-                                }
-
-                                if (rec.suggestedRating && state[k] && state[k].options) {
-                                    var btnApplyRec = createElement("button", "align-self:flex-start;padding:3px 8px;background:#fde047;border:1px solid #ca8a04;border-radius:4px;font-size:11px;color:#713f12;cursor:pointer;font-weight:600;margin-top:2px;");
-                                    btnApplyRec.textContent = "Apply \"" + rec.suggestedRating + "\" to Form";
-                                    (function(itemKey, suggestedVal){
-                                        addListener(btnApplyRec, "click", function(){
-                                            var s = state[itemKey];
-                                            if (!s || !s.options) return;
-                                            var foundOpt = s.options.find(function(o){
-                                                return o.label.toLowerCase().includes(suggestedVal.toLowerCase()) || suggestedVal.toLowerCase().includes(o.label.toLowerCase());
-                                            });
-                                            if (foundOpt) {
-                                                s.sel = foundOpt.id;
-                                                s.selIndex = s.options.indexOf(foundOpt);
-                                                if (s.refreshUI) s.refreshUI();
-                                                updateLiveScore();
-                                                showToast("Applied " + foundOpt.label + " to rubric!", false);
-                                            }
-                                        });
-                                    })(k, rec.suggestedRating);
-                                    recAlert.appendChild(btnApplyRec);
-                                }
-
-                                itBox.appendChild(recAlert);
-                            }
-
-                            lineItemsCard.appendChild(itBox);
+                            secGroups[sName].push(it);
                         });
 
-                        resDiv.appendChild(lineItemsCard);
+                        secOrder.forEach(function(sName){
+                            var secList = secGroups[sName];
+                            var secCard = createElement("div", "background:#ffffff;border:1px solid #e2e8f0;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:10px;margin-bottom:12px;");
+                            
+                            var secHeader = createElement("div", "font-weight:700;color:#1e293b;font-size:13px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #2563eb;padding-bottom:6px;");
+                            secHeader.innerHTML = "<span>📁 " + sName + " <span style='font-size:11px;font-weight:normal;color:#64748b;'>(" + secList.length + ")</span></span>";
+                            secCard.appendChild(secHeader);
+
+                            secList.forEach(function(it, sIdx){
+                                var k = it.key;
+                                var fb = (data.feedbacks && data.feedbacks[k]) ? data.feedbacks[k] : "";
+                                var rec = reconsiderationsMap[k];
+                                var isPos = it.isCorrect !== false && !it.userSelectedRating.toLowerCase().includes("missed");
+
+                                var itBox = createElement("div", "background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:6px;");
+                                
+                                var itTop = createElement("div", "display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;");
+                                var itTitle = createElement("div", "font-weight:600;font-size:12px;color:#1e293b;");
+                                itTitle.textContent = (sIdx + 1) + ". " + it.question;
+                                
+                                var badgeStyle = isPos ? "background:#dcfce7;color:#166534;border:1px solid #86efac;" : "background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;";
+                                var itBadge = createElement("span", "font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;" + badgeStyle);
+                                itBadge.textContent = it.userSelectedRating;
+                                
+                                itTop.appendChild(itTitle);
+                                itTop.appendChild(itBadge);
+                                itBox.appendChild(itTop);
+
+                                if (fb) {
+                                    var fbBox = createElement("div", "font-size:12px;line-height:1.5;color:#334155;background:white;border:1px solid #cbd5e1;border-radius:5px;padding:8px 10px;white-space:pre-wrap;");
+                                    fbBox.textContent = fb;
+                                    itBox.appendChild(fbBox);
+                                }
+
+                                if (rec && (rec.reasoning || rec.suggestedRating)) {
+                                    var recAlert = createElement("div", "background:#fefce8;border:1px solid #fde047;border-radius:5px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;margin-top:2px;");
+                                    
+                                    var recAlertHeader = createElement("div", "display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:#854d0e;");
+                                    recAlertHeader.innerHTML = "<span>⚠️ AI Observation for Reconsideration</span>";
+                                    if (rec.suggestedRating) {
+                                        var recSuggBadge = createElement("span", "background:#fef08a;color:#713f12;padding:1px 6px;border-radius:4px;border:1px solid #eab308;font-size:10px;font-weight:700;");
+                                        recSuggBadge.textContent = "Suggested: " + rec.suggestedRating;
+                                        recAlertHeader.appendChild(recSuggBadge);
+                                    }
+                                    recAlert.appendChild(recAlertHeader);
+
+                                    if (rec.reasoning) {
+                                        var recReason = createElement("div", "font-size:11px;color:#713f12;line-height:1.4;");
+                                        recReason.textContent = rec.reasoning;
+                                        recAlert.appendChild(recReason);
+                                    }
+
+                                    if (rec.suggestedRating && state[k] && state[k].options) {
+                                        var btnApplyRec = createElement("button", "align-self:flex-start;padding:3px 8px;background:#fde047;border:1px solid #ca8a04;border-radius:4px;font-size:11px;color:#713f12;cursor:pointer;font-weight:600;margin-top:2px;");
+                                        btnApplyRec.textContent = "Apply \"" + rec.suggestedRating + "\" to Form";
+                                        (function(itemKey, suggestedVal){
+                                            addListener(btnApplyRec, "click", function(){
+                                                var s = state[itemKey];
+                                                if (!s || !s.options) return;
+                                                var foundOpt = s.options.find(function(o){
+                                                    return o.label.toLowerCase().includes(suggestedVal.toLowerCase()) || suggestedVal.toLowerCase().includes(o.label.toLowerCase());
+                                                });
+                                                if (foundOpt) {
+                                                    s.sel = foundOpt.id;
+                                                    s.selIndex = s.options.indexOf(foundOpt);
+                                                    if (s.refreshUI) s.refreshUI();
+                                                    updateLiveScore();
+                                                    showToast("Applied " + foundOpt.label + " to rubric!", false);
+                                                }
+                                            });
+                                        })(k, rec.suggestedRating);
+                                        recAlert.appendChild(btnApplyRec);
+                                    }
+
+                                    itBox.appendChild(recAlert);
+                                }
+
+                                secCard.appendChild(itBox);
+                            });
+
+                            resDiv.appendChild(secCard);
+                        });
                     }
 
                     // Processed Feedback Summary
@@ -1396,13 +1405,10 @@
         document.body.appendChild(pOverlay);
     };
 
-    // Hook options to aiToolsMenu
-    aiToolsMenu.appendChild(createMenuItem("🔍 Interaction Checker", showInteractionCheckerModal, aiToolsMenu));
-    toolsMenu.appendChild(createMenuItem("⚙️ Configure", function(){ showSettingsModal(false); }, toolsMenu));
+    toolsMenu.appendChild(createMenuItem("⚙️ Configure Settings", function(){ showSettingsModal(false); }, toolsMenu));
 
     toolsContainer.appendChild(btnRefresh);
-    toolsContainer.appendChild(btnAiTools);
-    toolsContainer.appendChild(aiToolsMenu);
+    toolsContainer.appendChild(btnChecker);
     toolsContainer.appendChild(btnTools);
     toolsContainer.appendChild(toolsMenu);
     header.appendChild(toolsContainer);
@@ -2432,7 +2438,7 @@
         var selectedAsg = selectedAssignmentId ? globalAssignments.find(function(a){ return a.id === selectedAssignmentId; }) : null;
         var agentSnap = selectedAsg && selectedAsg.agentSnapshot ? (typeof selectedAsg.agentSnapshot === 'string' ? JSON.parse(selectedAsg.agentSnapshot) : selectedAsg.agentSnapshot) : null;
 
-        var resolvedQaName = currentQaDisplayName || formatEmailToName(QA_EMAIL) || QA_EMAIL;
+        var resolvedQaName = currentQaDisplayName || storage.get('qa_name', '') || formatEmailToName(QA_EMAIL) || QA_EMAIL;
 
         var payload = {
             action: 'submit_evaluation',
@@ -2465,10 +2471,11 @@
         var activeSupabaseKey = SUPABASE_KEY || storage.get('supabase_key', '');
         if (activeSupabaseKey) {
             var evalId = existingRecordId || ('EVL-' + Date.now() + '-' + Math.floor(Math.random() * 1000));
+            var nowIso = new Date().toISOString();
             var supRecord = {
                 id: evalId,
                 assignment_id: selectedAssignmentId || null,
-                submitted_at: new Date().toISOString(),
+                submitted_at: nowIso,
                 interaction_id: inpInteractionId.value.trim(),
                 qa_email: QA_EMAIL,
                 qa_name: resolvedQaName,
@@ -2487,12 +2494,47 @@
                 evaluation_details: details,
                 agent_snapshot: agentSnap,
                 synced_to_sheet: false,
-                created_at: new Date().toISOString()
+                updated_at: nowIso
             };
 
-            return supabaseFetch('personal_evaluations', 'POST', supRecord)
-                .then(function() {
-                    existingRecordId = evalId;
+            var savePromise;
+            if (existingRecordId) {
+                var patchData = Object.assign({}, supRecord);
+                delete patchData.id;
+                delete patchData.created_at;
+                savePromise = supabaseFetch('personal_evaluations?id=eq.' + encodeURIComponent(existingRecordId), 'PATCH', patchData)
+                    .then(function(rows) {
+                        if (!rows || (Array.isArray(rows) && rows.length === 0)) {
+                            supRecord.created_at = nowIso;
+                            return supabaseFetch('personal_evaluations', 'POST', supRecord, 'resolution=merge-duplicates');
+                        }
+                        return rows;
+                    });
+            } else if (selectedAssignmentId) {
+                var patchData = Object.assign({}, supRecord);
+                delete patchData.id;
+                delete patchData.created_at;
+                savePromise = supabaseFetch('personal_evaluations?assignment_id=eq.' + encodeURIComponent(selectedAssignmentId), 'PATCH', patchData)
+                    .then(function(rows) {
+                        if (Array.isArray(rows) && rows.length > 0) {
+                            if (rows[0].id) existingRecordId = rows[0].id;
+                            return rows;
+                        }
+                        supRecord.created_at = nowIso;
+                        return supabaseFetch('personal_evaluations', 'POST', supRecord, 'resolution=merge-duplicates');
+                    });
+            } else {
+                supRecord.created_at = nowIso;
+                savePromise = supabaseFetch('personal_evaluations', 'POST', supRecord, 'resolution=merge-duplicates');
+            }
+
+            return savePromise
+                .then(function(savedRows) {
+                    if (Array.isArray(savedRows) && savedRows.length > 0 && savedRows[0].id) {
+                        existingRecordId = savedRows[0].id;
+                    } else {
+                        existingRecordId = evalId;
+                    }
                     if (selectedAssignmentId) {
                         supabaseFetch('personal_assignments?id=eq.' + encodeURIComponent(selectedAssignmentId), 'PATCH', {
                             status: targetStatus,
@@ -3049,8 +3091,8 @@
     addListener(btnSaveOnly, "click", function(){
         btnSaveOnly.disabled = true;
         btnSaveOnly.textContent = "Saving...";
-        saveRecord('Partial').then(function(){
-            showToast("Saved as Partial to Sheets!", false);
+        saveRecord('Completed').then(function(){
+            showToast("Evaluation saved as Completed in Supabase!", false);
         }).catch(function(e){
             showToast(e.message, true);
         }).finally(function(){
@@ -3141,7 +3183,20 @@
         statusBadge.innerHTML = "<span style='font-size:18px;'>⚡</span><div><div style='font-weight:700;color:#065f46;font-size:13px;'>Supabase Cloud Connected</div><div style='color:#047857;font-size:11px;'>Personal Staging Database (juevdlfhpgiedfjghrkk.supabase.co)</div></div>";
         pBody.appendChild(statusBadge);
 
-        // 2. QA Account Email Input (pre-filled with your personal QA email)
+        // 2. QA Full Name Input
+        var grpName = createElement("div");
+        var lblName = createElement("label", sLabel);
+        lblName.innerHTML = "<span>Your QA Full Name</span> <span style='color:#ef4444'>*</span>";
+        grpName.appendChild(lblName);
+
+        var inpName = createElement("input", sInput);
+        inpName.placeholder = "e.g. Aaron Smith";
+        inpName.value = currentQaDisplayName || storage.get('qa_name', '');
+        var wrapName = createIconFieldWrapper("✍️", inpName, true);
+        grpName.appendChild(wrapName);
+        pBody.appendChild(grpName);
+
+        // 3. QA Account Email Input (pre-filled with your personal QA email)
         var grpEmail = createElement("div");
         var lblEmail = createElement("label", sLabel);
         lblEmail.innerHTML = "<span>Your QA Account Email</span> <span style='color:#ef4444'>*</span>";
@@ -3478,11 +3533,20 @@
         pBtnSave.style.cssText = "padding:8px 18px;border:none;background:#2563eb;color:white;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600;box-shadow:0 1px 3px rgba(37,99,235,0.3);";
 
         addListener(pBtnSave, "click", function(){
+            var newName = inpName.value.trim();
+            if (newName) {
+                currentQaDisplayName = newName;
+                qaFirstName = newName.split(' ')[0];
+                storage.set('qa_name', currentQaDisplayName);
+            }
+
             var newEmail = inpEmail.value.trim() || DEFAULT_QA_EMAIL;
             QA_EMAIL = newEmail;
             storage.set('qa_email', QA_EMAIL);
 
-            qaFirstName = formatEmailToName(newEmail).split(' ')[0];
+            if (!newName) {
+                qaFirstName = formatEmailToName(newEmail).split(' ')[0];
+            }
             GEMINI_API_KEY = inpKey.value.trim();
 
             var chosenModel = inpModel.value.trim() || DEFAULT_GEMINI_MODEL;
@@ -3506,6 +3570,7 @@
             var settingsPayload = {
                 key: 'user_config',
                 value: {
+                    qa_name: currentQaDisplayName,
                     qa_email: QA_EMAIL,
                     gemini_key: GEMINI_API_KEY,
                     gemini_model: GEMINI_MODEL,
@@ -3517,6 +3582,7 @@
 
             supabaseFetch('personal_settings', 'POST', settingsPayload, 'resolution=merge-duplicates')
                 .then(function(){
+                    updateHeaderTitle();
                     showToast("Settings saved to local cache & Supabase cloud!", false);
                 })
                 .catch(function(err){
@@ -3596,6 +3662,11 @@
             .then(function(rows) {
                 if (Array.isArray(rows) && rows.length > 0 && rows[0].value) {
                     var val = rows[0].value;
+                    if (val.qa_name) {
+                        currentQaDisplayName = val.qa_name;
+                        qaFirstName = val.qa_name.split(' ')[0];
+                        storage.set('qa_name', val.qa_name);
+                    }
                     if (val.qa_email) {
                         QA_EMAIL = val.qa_email;
                         storage.set('qa_email', val.qa_email);
