@@ -2493,8 +2493,7 @@
                 issue_concern: txtIssue.value.trim(),
                 evaluation_details: details,
                 agent_snapshot: agentSnap,
-                synced_to_sheet: false,
-                updated_at: nowIso
+                synced_to_sheet: false
             };
 
             var savePromise;
