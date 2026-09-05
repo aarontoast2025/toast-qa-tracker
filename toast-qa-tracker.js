@@ -284,7 +284,13 @@
     var globalAssignments = [];
     var selectedAssignmentId = "";
     var globalEvalTypes = [];
-    var globalGeminiModels = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    var DEFAULT_GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    var storedModels = null;
+    try {
+        var rawStored = storage.get('gemini_models', null);
+        if (rawStored) storedModels = JSON.parse(rawStored);
+    } catch(e) {}
+    var globalGeminiModels = (Array.isArray(storedModels) && storedModels.length > 0) ? storedModels : DEFAULT_GEMINI_MODELS.slice();
     var currentQaDisplayName = "";
     var qaFirstName = "";
     var existingRecordId = null;
@@ -314,6 +320,7 @@
                     qa_email: QA_EMAIL,
                     gemini_key: GEMINI_API_KEY,
                     gemini_model: GEMINI_MODEL,
+                    gemini_models: globalGeminiModels,
                     ai_instructions: aiInstructions
                 },
                 updated_at: new Date().toISOString()
@@ -3187,24 +3194,208 @@
         grpKey.appendChild(keyHelp);
         pBody.appendChild(grpKey);
 
-        // 3. Gemini Model Selector (dropdown populated from globalGeminiModels, in-field icon 🤖)
-        var grpModel = createElement("div");
-        grpModel.appendChild(createElement("label", sLabel)).textContent = "Gemini Model";
+        // 3. Dynamic Gemini Model Combobox (with manual typing, instant adding, and delete per option)
+        var grpModel = createElement("div", "position:relative;");
+        var lblModel = createElement("label", sLabel);
+        lblModel.innerHTML = "<span>Gemini Model</span> <span style='font-size:11px;color:#64748b;font-weight:normal;'>(select, type custom, or 🗑️ delete)</span>";
+        grpModel.appendChild(lblModel);
 
-        var selModel = createElement("select", sSelect);
-        var modelsToUse = (globalGeminiModels && globalGeminiModels.length > 0) ? globalGeminiModels : ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'];
-        modelsToUse.forEach(function(m){
-            var opt = createElement("option");
-            opt.value = m;
-            opt.textContent = m;
-            if (m === (GEMINI_MODEL || DEFAULT_GEMINI_MODEL)) {
-                opt.selected = true;
+        var wrapModel = createElement("div", "position:relative;display:flex;align-items:center;width:100%;");
+        var iconModel = createElement("span", "position:absolute;left:11px;pointer-events:none;font-size:13px;z-index:2;user-select:none;display:inline-flex;align-items:center;justify-content:center;");
+        iconModel.textContent = "🤖";
+
+        var inpModel = createElement("input", sInput);
+        inpModel.placeholder = "e.g. gemini-2.5-flash";
+        inpModel.value = GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+        inpModel.style.paddingLeft = "36px";
+        inpModel.style.paddingRight = "58px";
+        inpModel.style.boxSizing = "border-box";
+        inpModel.style.width = "100%";
+        inpModel.style.height = "36px";
+        inpModel.style.margin = "0";
+
+        // Toggle caret button
+        var btnToggleDropdown = createElement("button", "position:absolute;right:28px;background:transparent;border:none;cursor:pointer;padding:4px 6px;color:#64748b;font-size:11px;display:inline-flex;align-items:center;height:100%;");
+        btnToggleDropdown.type = "button";
+        btnToggleDropdown.innerHTML = "▼";
+        btnToggleDropdown.title = "Show available models";
+
+        // Quick Add button (+)
+        var btnAddModel = createElement("button", "position:absolute;right:6px;background:#e0e7ff;color:#3730a3;border:none;border-radius:4px;cursor:pointer;width:20px;height:22px;font-size:14px;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;");
+        btnAddModel.type = "button";
+        btnAddModel.textContent = "+";
+        btnAddModel.title = "Add typed model to options";
+
+        wrapModel.appendChild(iconModel);
+        wrapModel.appendChild(inpModel);
+        wrapModel.appendChild(btnToggleDropdown);
+        wrapModel.appendChild(btnAddModel);
+        grpModel.appendChild(wrapModel);
+
+        // Floating dropdown menu panel
+        var dropdownMenu = createElement("div", "position:absolute;left:0;right:0;top:100%;margin-top:3px;background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 6px 16px rgba(0,0,0,0.12);max-height:170px;overflow-y:auto;z-index:9999;display:none;padding:4px 0;scrollbar-width:thin;");
+        grpModel.appendChild(dropdownMenu);
+
+        var saveModelListToSupabase = function() {
+            var sKey = SUPABASE_KEY || storage.get('supabase_key', DEFAULT_SUPABASE_KEY);
+            if (!sKey) return;
+            supabaseFetch('personal_settings', 'POST', {
+                key: 'user_config',
+                value: {
+                    qa_email: QA_EMAIL,
+                    gemini_key: GEMINI_API_KEY,
+                    gemini_model: inpModel.value.trim() || GEMINI_MODEL,
+                    gemini_models: globalGeminiModels,
+                    ai_instructions: aiInstructions
+                },
+                updated_at: new Date().toISOString()
+            }, 'resolution=merge-duplicates').catch(function(err){
+                console.warn("Supabase models sync:", err);
+            });
+        };
+
+        var addCustomModel = function(modelName) {
+            var m = String(modelName || '').trim();
+            if (!m) return;
+            if (!globalGeminiModels.some(function(existing){ return existing.toLowerCase() === m.toLowerCase(); })) {
+                globalGeminiModels.push(m);
+                storage.set('gemini_models', JSON.stringify(globalGeminiModels));
+                saveModelListToSupabase();
+                showToast("Added " + m + " to models list!", false);
             }
-            selModel.appendChild(opt);
+            inpModel.value = m;
+            GEMINI_MODEL = m;
+            renderModelOptions();
+            dropdownMenu.style.display = "none";
+        };
+
+        var renderModelOptions = function() {
+            dropdownMenu.innerHTML = "";
+            var currentVal = inpModel.value.trim();
+
+            globalGeminiModels.forEach(function(m){
+                var itemRow = createElement("div", "display:flex;align-items:center;justify-content:space-between;padding:7px 12px;font-size:12px;cursor:pointer;transition:background 0.15s;");
+                var isCurrent = (m.toLowerCase() === currentVal.toLowerCase());
+                if (isCurrent) {
+                    itemRow.style.background = "#eff6ff";
+                    itemRow.style.fontWeight = "600";
+                    itemRow.style.color = "#1d4ed8";
+                }
+
+                var itemLabel = createElement("span", "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;");
+                itemLabel.textContent = (isCurrent ? "✓ " : "  ") + m;
+
+                var btnDelete = createElement("span", "cursor:pointer;color:#94a3b8;padding:2px 6px;border-radius:3px;font-size:12px;transition:all 0.15s;margin-left:8px;");
+                btnDelete.innerHTML = "🗑️";
+                btnDelete.title = "Delete " + m;
+
+                addListener(btnDelete, "mouseenter", function(){
+                    btnDelete.style.color = "#ef4444";
+                    btnDelete.style.background = "#fee2e2";
+                });
+                addListener(btnDelete, "mouseleave", function(){
+                    btnDelete.style.color = "#94a3b8";
+                    btnDelete.style.background = "transparent";
+                });
+
+                addListener(btnDelete, "click", function(e){
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (globalGeminiModels.length <= 1) {
+                        showToast("Cannot delete the only remaining model.", true);
+                        return;
+                    }
+                    globalGeminiModels = globalGeminiModels.filter(function(mod){ return mod !== m; });
+                    storage.set('gemini_models', JSON.stringify(globalGeminiModels));
+
+                    if (inpModel.value.trim() === m) {
+                        inpModel.value = globalGeminiModels[0];
+                        GEMINI_MODEL = globalGeminiModels[0];
+                    }
+
+                    saveModelListToSupabase();
+                    renderModelOptions();
+                    showToast("Deleted " + m, false);
+                });
+
+                addListener(itemRow, "mouseenter", function(){
+                    if (!isCurrent) itemRow.style.background = "#f1f5f9";
+                });
+                addListener(itemRow, "mouseleave", function(){
+                    if (!isCurrent) itemRow.style.background = "transparent";
+                });
+
+                addListener(itemRow, "click", function(){
+                    inpModel.value = m;
+                    GEMINI_MODEL = m;
+                    dropdownMenu.style.display = "none";
+                });
+
+                itemRow.appendChild(itemLabel);
+                itemRow.appendChild(btnDelete);
+                dropdownMenu.appendChild(itemRow);
+            });
+
+            // If user typed a custom model that doesn't exist yet, show option to add it
+            if (currentVal && !globalGeminiModels.some(function(m){ return m.toLowerCase() === currentVal.toLowerCase(); })) {
+                var addPromptRow = createElement("div", "padding:8px 12px;font-size:12px;cursor:pointer;background:#f8fafc;color:#2563eb;font-weight:600;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:6px;");
+                addPromptRow.innerHTML = "<span>+</span> <span>Add <strong>" + currentVal + "</strong></span>";
+                addListener(addPromptRow, "click", function(){
+                    addCustomModel(currentVal);
+                });
+                dropdownMenu.appendChild(addPromptRow);
+            }
+        };
+
+        var toggleDropdown = function(show) {
+            var willOpen = (show !== undefined) ? show : (dropdownMenu.style.display === "none");
+            if (willOpen) {
+                renderModelOptions();
+                dropdownMenu.style.display = "block";
+            } else {
+                dropdownMenu.style.display = "none";
+            }
+        };
+
+        addListener(btnToggleDropdown, "click", function(e){
+            e.stopPropagation();
+            toggleDropdown();
         });
 
-        var wrapModel = createIconFieldWrapper("🤖", selModel, true);
-        grpModel.appendChild(wrapModel);
+        addListener(inpModel, "focus", function(){
+            toggleDropdown(true);
+        });
+
+        addListener(inpModel, "input", function(){
+            toggleDropdown(true);
+        });
+
+        addListener(inpModel, "keydown", function(e){
+            if (e.key === "Enter") {
+                e.preventDefault();
+                var typed = inpModel.value.trim();
+                if (typed) {
+                    addCustomModel(typed);
+                }
+            }
+        });
+
+        addListener(btnAddModel, "click", function(e){
+            e.stopPropagation();
+            var typed = inpModel.value.trim();
+            if (typed) {
+                addCustomModel(typed);
+            } else {
+                inpModel.focus();
+            }
+        });
+
+        addListener(document, "click", function(e){
+            if (!grpModel.contains(e.target)) {
+                dropdownMenu.style.display = "none";
+            }
+        });
+
         pBody.appendChild(grpModel);
 
         // 4. AI Instructions (1 to 3 words title)
@@ -3231,13 +3422,19 @@
 
             qaFirstName = formatEmailToName(newEmail).split(' ')[0];
             GEMINI_API_KEY = inpKey.value.trim();
-            GEMINI_MODEL = selModel.value.trim() || DEFAULT_GEMINI_MODEL;
+
+            var chosenModel = inpModel.value.trim() || DEFAULT_GEMINI_MODEL;
+            GEMINI_MODEL = chosenModel;
+            if (!globalGeminiModels.some(function(m){ return m.toLowerCase() === chosenModel.toLowerCase(); })) {
+                globalGeminiModels.push(chosenModel);
+            }
 
             var newInstr = txtSettingsAiInstr.value.trim() || DEFAULT_GENERAL_INSTRUCTION;
             aiInstructions.general = newInstr;
 
             storage.set('gemini_key', GEMINI_API_KEY);
             storage.set('gemini_model', GEMINI_MODEL);
+            storage.set('gemini_models', JSON.stringify(globalGeminiModels));
             storage.set('ai_gen_instr', newInstr);
 
             pBtnSave.disabled = true;
@@ -3250,6 +3447,7 @@
                     qa_email: QA_EMAIL,
                     gemini_key: GEMINI_API_KEY,
                     gemini_model: GEMINI_MODEL,
+                    gemini_models: globalGeminiModels,
                     ai_instructions: aiInstructions
                 },
                 updated_at: new Date().toISOString()
@@ -3344,6 +3542,10 @@
                     if (val.gemini_model) {
                         GEMINI_MODEL = val.gemini_model;
                         storage.set('gemini_model', val.gemini_model);
+                    }
+                    if (val.gemini_models && Array.isArray(val.gemini_models) && val.gemini_models.length > 0) {
+                        globalGeminiModels = val.gemini_models;
+                        storage.set('gemini_models', JSON.stringify(globalGeminiModels));
                     }
                     if (val.ai_instructions) {
                         var genInstr = typeof val.ai_instructions === 'string' ? val.ai_instructions : (val.ai_instructions.general || '');
