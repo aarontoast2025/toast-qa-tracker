@@ -3,7 +3,7 @@
     console.log("Toast QA Tracker: Initializing...");
 
     // Default configuration
-    var DEFAULT_API_URL = 'https://script.google.com/a/macros/toasttab.com/s/AKfycbzlPOPv6XatB7n56GnFZJsZWpjn9_pgnlbgYyuFgLQgjaXY827AwxBlyR7njYqCcnjCng/exec';
+    var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbyI2cDSGLZokRPesN_f-LmdSp2YLXzY3aXYpyrq2_Kzh9_vYCQOsyQtw0L-7wwHQ3lFEQ/exec';
     var DEFAULT_API_TOKEN = 'toast_qa_bookmarklet_2026';
     var DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
     var DEFAULT_SUPABASE_URL = 'https://juevdlfhpgiedfjghrkk.supabase.co';
@@ -118,12 +118,12 @@
         });
         var fullUrl = url + (url.indexOf('?') === -1 ? '?' : '&') + queryParts.join('&');
 
-        // For Google Workspace domain URLs (/a/macros/), use JSONP directly to bypass CORS 302
-        if (url.indexOf('/a/macros/') !== -1) {
+        // For Google Apps Script URLs, always use JSONP directly to bypass CORS 302 and wildcard-origin restrictions
+        if (url.indexOf('script.google.com') !== -1 || url.indexOf('/macros/') !== -1) {
             return jsonpRequest(url, params);
         }
 
-        return fetch(fullUrl, { mode: 'cors', credentials: 'include' })
+        return fetch(fullUrl, { mode: 'cors' })
             .then(function(res){
                 if (!res.ok && res.status !== 0) throw new Error("HTTP " + res.status);
                 return res.json();
@@ -1856,7 +1856,9 @@
                     tagContainer.innerHTML = "";
                     var currentOptIdx = state[key].selIndex;
                     var relevantTags = globalFeedbackTags.filter(function(t){
-                        return (t.sectionIndex === secIdx || t.section_index === secIdx) &&
+                        var matchRubric = !t.rubricId || !currentRubric || !currentRubric.id || String(t.rubricId) === String(currentRubric.id);
+                        return matchRubric &&
+                               (t.sectionIndex === secIdx || t.section_index === secIdx) &&
                                (t.itemIndex === itemIdx || t.item_index === itemIdx) &&
                                (t.optionIndex === currentOptIdx || t.option_index === currentOptIdx);
                     });
@@ -1893,6 +1895,7 @@
                         tagContainer.appendChild(tagBtn);
                     });
                 };
+                state[key].renderTags = renderTags;
 
                 // Render based on uiType: 'dropdown' or 'buttons'
                 var isDropdown = (item.uiType === 'dropdown');
@@ -2034,6 +2037,17 @@
         } else {
             renderRubric(allRubrics[0] || DEFAULT_FALLBACK_RUBRIC, globalFeedbackTags, globalFeedbackGeneral);
         }
+    };
+
+    var refreshFeedbackTagsAndGeneral = function() {
+        Object.keys(state).forEach(function(k){
+            if (state[k] && typeof state[k].renderTags === 'function') {
+                state[k].renderTags();
+            }
+            if (state[k] && state[k].domTextarea && !state[k].domTextarea.value.trim()) {
+                updateText(k);
+            }
+        });
     };
 
     // --- Score / State Reset Helper ---
@@ -3586,7 +3600,37 @@
                             storage.set('ai_gen_instr', genInstr);
                         }
                     }
+                    if (val.web_app_url) {
+                        API_BASE_URL = normalizeApiUrl(val.web_app_url);
+                        storage.set('api_url', API_BASE_URL);
+                    }
                     return true;
+                }
+                return false;
+            })
+            .catch(function() { return false; });
+    };
+
+    var loadTemplatesFromSupabase = function() {
+        var sKey = SUPABASE_KEY || storage.get('supabase_key', DEFAULT_SUPABASE_KEY);
+        if (!sKey) return Promise.resolve(false);
+        return supabaseFetch('personal_settings?key=eq.feedback_templates_cache&select=*', 'GET')
+            .then(function(rows) {
+                if (Array.isArray(rows) && rows.length > 0 && rows[0].value) {
+                    var val = rows[0].value;
+                    var hasChips = Array.isArray(val.feedbackChips) && val.feedbackChips.length > 0;
+                    var hasGen = Array.isArray(val.feedbackGeneral) && val.feedbackGeneral.length > 0;
+                    var hasRubrics = Array.isArray(val.rubrics) && val.rubrics.length > 0;
+
+                    if (hasChips) globalFeedbackTags = val.feedbackChips;
+                    if (hasGen) globalFeedbackGeneral = val.feedbackGeneral;
+                    if (hasRubrics) allRubrics = val.rubrics;
+
+                    if (hasChips || hasGen || hasRubrics) {
+                        console.log("Toast QA: Restored " + globalFeedbackTags.length + " chips & " + globalFeedbackGeneral.length + " general feedback items from Supabase cache.");
+                        refreshFeedbackTagsAndGeneral();
+                        return true;
+                    }
                 }
                 return false;
             })
@@ -3634,8 +3678,11 @@
                 hideLoading();
             }
 
-            // 2. Fetch fresh Settings and Assignments directly from Supabase immediately!
-            loadSettingsFromSupabase().then(function(){
+            // 2. Fetch fresh Settings, Templates, and Assignments directly from Supabase immediately!
+            Promise.all([
+                loadSettingsFromSupabase(),
+                loadTemplatesFromSupabase()
+            ]).then(function(){
                 updateHeaderTitle();
             });
 
@@ -3645,6 +3692,65 @@
                     showToast("Loaded " + globalAssignments.length + " assignments from Supabase!", false);
                 }
             });
+
+            // 3. Background Sync from Google Apps Script for live Feedback Builder templates and Rubrics
+            var gasUrl = API_BASE_URL || storage.get('api_url', DEFAULT_API_URL);
+            var targetQaEmail = QA_EMAIL || storage.get('qa_email', DEFAULT_QA_EMAIL);
+            if (gasUrl && targetQaEmail) {
+                apiGet(gasUrl, {
+                    action: 'get_init_data',
+                    qa_email: targetQaEmail
+                })
+                .then(function(data){
+                    if (data && data.success) {
+                        var hasNewChips = Array.isArray(data.feedbackChips) && data.feedbackChips.length > 0;
+                        var hasNewGen = Array.isArray(data.feedbackGeneral) && data.feedbackGeneral.length > 0;
+                        var hasNewRubrics = Array.isArray(data.rubrics) && data.rubrics.length > 0;
+
+                        if (hasNewChips) globalFeedbackTags = data.feedbackChips;
+                        if (hasNewGen) globalFeedbackGeneral = data.feedbackGeneral;
+                        if (hasNewRubrics) allRubrics = data.rubrics;
+                        if (data.evalTypes && Array.isArray(data.evalTypes) && data.evalTypes.length > 0) {
+                            globalEvalTypes = data.evalTypes;
+                            updateEvalTypesDropdown();
+                        }
+
+                        // Update local IndexedDB cache
+                        idb.set('cached_payload', data);
+
+                        // Mirror to Supabase personal_settings for backup & multi-device sync
+                        var sKey = SUPABASE_KEY || storage.get('supabase_key', DEFAULT_SUPABASE_KEY);
+                        if (sKey && (hasNewChips || hasNewGen || hasNewRubrics)) {
+                            supabaseFetch('personal_settings', 'POST', {
+                                key: 'feedback_templates_cache',
+                                value: {
+                                    feedbackChips: globalFeedbackTags,
+                                    feedbackGeneral: globalFeedbackGeneral,
+                                    rubrics: allRubrics
+                                },
+                                updated_at: new Date().toISOString()
+                            }, 'resolution=merge-duplicates').catch(function(err){
+                                console.warn("Supabase templates mirror:", err);
+                            });
+                        }
+
+                        // Refresh active rubric & chips if assignment is currently selected
+                        if (selAgent && selAgent.value) {
+                            var curOpt = selAgent.selectedOptions[0];
+                            var asgRubricId = curOpt ? curOpt.getAttribute('data-rubric-id') : null;
+                            if (asgRubricId && currentRubric && currentRubric.id !== asgRubricId) {
+                                switchRubricById(asgRubricId);
+                            } else {
+                                refreshFeedbackTagsAndGeneral();
+                            }
+                        }
+                        console.log("Toast QA: Synced " + globalFeedbackTags.length + " chips & " + globalFeedbackGeneral.length + " general feedback items from Feedback Builder.");
+                    }
+                })
+                .catch(function(err){
+                    console.warn("Feedback builder background sync:", err);
+                });
+            }
         });
     };
 
