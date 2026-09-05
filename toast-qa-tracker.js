@@ -2408,12 +2408,14 @@
                 var selectedOption = s.options.find(function(o){ return o.id === s.sel; });
                 var pts = selectedOption ? Number(selectedOption.points || 0) : 0;
                 var selLabel = selectedOption ? (selectedOption.label || selectedOption.text || '') : '';
+                var isCorr = selectedOption ? (selectedOption.isCorrect === true || selectedOption.isCorrect === 'true') : null;
                 var fbText = (s.text || '').trim();
 
                 var entry = {
                     question: item.question || item.title || item.shortName || ('Question ' + (itemIdx + 1)),
                     selected: selLabel,
                     points: pts,
+                    isCorrect: isCorr,
                     feedback: fbText,
                     feedbackText: fbText,
                     checked: !!(s.checked)

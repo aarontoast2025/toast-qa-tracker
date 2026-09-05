@@ -96,6 +96,7 @@ var state = {
   userEmail: window.CURRENT_USER_EMAIL || '',
   assignments: [],
   evaluations: [],
+  rubrics: [],
   currentView: 'daily',
   currentDate: new Date(),
   searchTerm: ''
@@ -112,6 +113,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (cached && cached.assignments) {
       state.assignments = cached.assignments || [];
       state.evaluations = cached.evaluations || [];
+      state.rubrics = cached.rubrics || [];
       renderTable();
       calculateCounters();
     }
@@ -132,11 +134,15 @@ function fetchBackendData(showLoader, callback) {
       if (res && res.success) {
         state.assignments = res.assignments || [];
         state.evaluations = res.evaluations || [];
+        if (res.rubrics && Array.isArray(res.rubrics)) {
+          state.rubrics = res.rubrics;
+        }
         
         // Persist to IndexedDB
         window.StorageManager.set({
           assignments: state.assignments,
-          evaluations: state.evaluations
+          evaluations: state.evaluations,
+          rubrics: state.rubrics
         });
 
         renderTable();
@@ -364,7 +370,7 @@ function renderTable() {
     if (!ev) {
       statusBadge = '<span class="badge bg-warning text-dark px-2 py-1 rounded-pill">Pending</span>';
     } else if (ev.synced_to_sheet) {
-      statusBadge = '<span class="badge bg-success px-2 py-1 rounded-pill mb-1">Completed</span><br/><span class="sync-badge-synced"><i class="bi bi-check-circle-fill me-1"></i>Synced to Sheet</span>';
+      statusBadge = '<span class="badge bg-success px-2 py-1 rounded-pill">Completed</span>';
     } else {
       statusBadge = '<span class="badge bg-success px-2 py-1 rounded-pill mb-1">Completed</span><br/><span class="sync-badge-saved"><i class="bi bi-cloud-check me-1"></i>Saved in Supabase</span>';
     }
@@ -372,14 +378,16 @@ function renderTable() {
     // Action Buttons
     var actionBtn = '';
     if (ev) {
-      var syncBtn = ev.synced_to_sheet
-        ? '<button class="btn btn-sm btn-light text-success border px-2 py-1 rounded-pill" disabled title="Already synced to Google Sheet"><i class="bi bi-check2-all me-1"></i>Synced</button>'
-        : '<button class="btn btn-sm btn-orange px-2.5 py-1 rounded-pill shadow-sm" onclick="syncSingleEval(\'' + ev.id + '\')" title="Push to Team Google Sheet"><i class="bi bi-cloud-arrow-up-fill me-1"></i>Sync</button>';
-      
-      actionBtn = '<div class="d-flex justify-content-end gap-1">' +
-        syncBtn +
-        '<button class="btn btn-sm btn-outline-secondary px-2 py-1 rounded-pill" onclick="viewDetails(\'' + ev.id + '\')" title="View details"><i class="bi bi-eye"></i></button>' +
-        '</div>';
+      if (ev.synced_to_sheet) {
+        actionBtn = '<div class="d-flex justify-content-end gap-1">' +
+          '<button class="btn btn-sm btn-light border text-success px-2.5 py-1 rounded-pill shadow-sm" onclick="viewDetails(\'' + ev.id + '\')" title="Synced to Sheet - Click to view details"><i class="bi bi-eye me-1"></i>Synced</button>' +
+          '</div>';
+      } else {
+        actionBtn = '<div class="d-flex justify-content-end gap-1">' +
+          '<button class="btn btn-sm btn-orange px-2.5 py-1 rounded-pill shadow-sm" onclick="syncSingleEval(\'' + ev.id + '\')" title="Push to Team Google Sheet"><i class="bi bi-cloud-arrow-up-fill me-1"></i>Sync</button>' +
+          '<button class="btn btn-sm btn-outline-secondary px-2 py-1 rounded-pill shadow-sm" onclick="viewDetails(\'' + ev.id + '\')" title="View details"><i class="bi bi-eye"></i></button>' +
+          '</div>';
+      }
     } else {
       actionBtn = '<span class="text-muted small fst-italic">Awaiting review</span>';
     }
@@ -570,6 +578,61 @@ function toggleEvalDetailFeedback(collapseId) {
   }
 }
 
+// Helper: Resolve whether a rubric line item answer is correct or incorrect
+function resolveLineItemCorrectness(q, sn) {
+  if (q.isCorrect !== undefined && q.isCorrect !== null) {
+    return (q.isCorrect === true || q.isCorrect === 'true' || q.isCorrect === 1 || q.isCorrect === '1');
+  }
+
+  var rubrics = state.rubrics || [];
+  var qTitleNorm = String(q.question || q.title || '').trim().toLowerCase();
+  var qSelNorm = String(q.selected || q.selectedOption || q.label || '').trim().toLowerCase();
+
+  for (var r = 0; r < rubrics.length; r++) {
+    var rub = rubrics[r];
+    var struct = rub.structure;
+    if (typeof struct === 'string') {
+      try { struct = JSON.parse(struct); } catch(e) { struct = null; }
+    }
+    var sections = Array.isArray(struct) ? struct : (struct && struct.sections ? struct.sections : []);
+    for (var s = 0; s < sections.length; s++) {
+      var sec = sections[s];
+      var items = sec.items || [];
+      for (var i = 0; i < items.length; i++) {
+        var it = items[i];
+        var itTitleNorm = String(it.question || it.title || it.shortName || '').trim().toLowerCase();
+        if (itTitleNorm === qTitleNorm) {
+          var options = it.options || [];
+          for (var o = 0; o < options.length; o++) {
+            var opt = options[o];
+            var optLabelNorm = String(opt.label || opt.text || '').trim().toLowerCase();
+            if (optLabelNorm === qSelNorm) {
+              if (opt.isCorrect !== undefined && opt.isCorrect !== null) {
+                return (opt.isCorrect === true || opt.isCorrect === 'true');
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Fallback checks on standard terminology and points
+  if (qSelNorm.includes('excelled') || qSelNorm.includes('met') || qSelNorm === 'yes') {
+    return true;
+  }
+  if (qSelNorm.includes('missed') || qSelNorm === 'no') {
+    return false;
+  }
+
+  var pts = parseFloat(q.points);
+  if (!isNaN(pts)) {
+    return pts > 0;
+  }
+
+  return true;
+}
+
 // Render structured rubric scoresheet with section cards, points badges, and feedback panels
 function renderRubricScoresheetHtml(details) {
   if (!details) return '<p class="text-muted small fst-italic">No rubric details recorded.</p>';
@@ -636,7 +699,7 @@ function renderRubricScoresheetHtml(details) {
     var items = sections[sn] || [];
     html += '<div class="mb-3">' +
       '<h6 class="fw-bold text-dark border-bottom pb-1.5 mb-2 small text-uppercase d-flex justify-content-between align-items-center">' +
-        '<span><i class="bi bi-folder2-open text-orange me-1.5"></i>' + escapeHtml(sn) + '</span>' +
+        '<span><i class="bi bi-folder2-open text-orange me-2"></i> ' + escapeHtml(sn) + '</span>' +
         '<span class="text-muted fw-normal" style="font-size: 0.72rem;">' + items.length + ' item' + (items.length > 1 ? 's' : '') + '</span>' +
       '</h6>';
 
@@ -649,17 +712,15 @@ function renderRubricScoresheetHtml(details) {
       var chips = Array.isArray(q.feedbackChips) ? q.feedbackChips : [];
       var hasFeedback = (fbText.length > 0) || (chips.length > 0);
 
-      // Points badge
-      var ptsVal = (q.points !== undefined && q.points !== null && q.points !== '') ? parseFloat(q.points) : null;
+      // Resolve points badge based on isCorrect
+      var isCorrect = resolveLineItemCorrectness(q, sn);
+      var ptsVal = (q.points !== undefined && q.points !== null && q.points !== '') ? Math.abs(parseFloat(q.points)) : 0;
       var ptsBadge = '';
-      if (ptsVal !== null && !isNaN(ptsVal)) {
-        if (q.isCorrect === true || ptsVal > 0) {
-          ptsBadge = '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill small fw-bold" style="font-size:0.72rem;"><i class="bi bi-plus-circle me-1"></i>' + Math.abs(ptsVal) + ' pts</span>';
-        } else if (q.isCorrect === false || ptsVal < 0) {
-          ptsBadge = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 rounded-pill small fw-bold" style="font-size:0.72rem;"><i class="bi bi-dash-circle me-1"></i>' + Math.abs(ptsVal) + ' pts</span>';
-        } else {
-          ptsBadge = '<span class="badge bg-light text-secondary border px-2 py-0.5 rounded-pill small fw-bold" style="font-size:0.72rem;">0 pts</span>';
-        }
+
+      if (isCorrect) {
+        ptsBadge = '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill small fw-bold" style="font-size:0.72rem;"><i class="bi bi-plus-circle me-1"></i>' + ptsVal + ' pts</span>';
+      } else {
+        ptsBadge = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 rounded-pill small fw-bold" style="font-size:0.72rem;"><i class="bi bi-dash-circle me-1"></i>' + ptsVal + ' pts</span>';
       }
 
       html += '<div class="eval-detail-item-card mb-2 rounded overflow-hidden">' +
@@ -673,7 +734,7 @@ function renderRubricScoresheetHtml(details) {
             ptsBadge +
           '</div>' +
         '</div>' +
-        '<div id="' + collapseId + '" class="eval-detail-feedback-panel rounded bg-light p-3 border-top d-none">' +
+        '<div id="' + collapseId + '" class="eval-detail-feedback-panel rounded bg-light p-3 d-none">' +
           (hasFeedback
             ? (fbText ? '<div class="d-flex align-items-start gap-2 text-secondary small mb-2" style="font-size: 0.85rem; line-height: 1.5;"><i class="bi bi-chat-left-text text-orange flex-shrink-0 mt-0.5"></i><div class="flex-grow-1" style="white-space: pre-wrap;">' + escapeHtml(fbText) + '</div></div>' : '') +
               (chips.length > 0 ? '<div class="d-flex flex-wrap gap-1 mt-1">' + chips.map(function(c) { return '<span class="badge bg-white text-secondary border small px-2 py-1"><i class="bi bi-tag-fill text-orange me-1" style="font-size: 0.65rem;"></i>' + escapeHtml(c) + '</span>'; }).join('') + '</div>' : '')
@@ -751,19 +812,19 @@ function viewDetails(evalId) {
     '</div>';
   }
 
-  // 2. Rubric Breakdown Scoresheet
-  var rawDetails = ev.evaluation_details || ev.evaluationDetails || ev.details;
-  content += renderRubricScoresheetHtml(rawDetails);
-
-  // 3. Issue / Concern
+  // 2. Issue / Concern (Placed BEFORE the Rubric Scoresheet as requested)
   if (ev.issue_concern) {
-    content += '<div class="mb-3">' +
+    content += '<div class="mb-4">' +
       '<label class="form-label small fw-bold text-muted d-block mb-1 text-uppercase"><i class="bi bi-exclamation-triangle me-1 text-orange"></i>Issue / Concern</label>' +
       '<div class="bg-light p-3 rounded border text-secondary" style="white-space: pre-wrap; font-size: 0.85rem; line-height: 1.5;">' + escapeHtml(ev.issue_concern) + '</div>' +
     '</div>';
   }
 
-  // 4. Coaching Comments
+  // 3. Rubric Breakdown Scoresheet
+  var rawDetails = ev.evaluation_details || ev.evaluationDetails || ev.details;
+  content += renderRubricScoresheetHtml(rawDetails);
+
+  // 4. Coaching Comments / Notes
   if (ev.comments) {
     content += '<div class="mb-3">' +
       '<label class="form-label small fw-bold text-muted d-block mb-1 text-uppercase"><i class="bi bi-chat-quote me-1 text-orange"></i>Coaching Comments / Notes</label>' +

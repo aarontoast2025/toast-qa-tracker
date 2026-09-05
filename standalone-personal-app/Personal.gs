@@ -101,11 +101,41 @@ function getInitialData(qaEmail) {
     var evalRes = supabaseRequest('personal_evaluations?qa_email=eq.' + encodeURIComponent(email) + '&order=submitted_at.desc', 'GET');
     var evaluations = (evalRes.success && Array.isArray(evalRes.data)) ? evalRes.data : [];
 
+    // 3. Fetch active rubrics from team Google Sheet
+    var rubrics = [];
+    try {
+      var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+      var rSheet = ss.getSheetByName('Rubrics');
+      if (rSheet && rSheet.getLastRow() >= 2) {
+        var rData = rSheet.getDataRange().getValues();
+        var rHeaders = rData[0].map(function(h) { return String(h || '').trim(); });
+        var idCol = rHeaders.indexOf('ID');
+        var nameCol = rHeaders.indexOf('Name');
+        var structCol = rHeaders.indexOf('Structure');
+        var statusCol = rHeaders.indexOf('Status');
+        for (var i = 1; i < rData.length; i++) {
+          var rStatus = statusCol !== -1 ? String(rData[i][statusCol] || '').trim() : 'Active';
+          if (rStatus === 'Active' || !rStatus) {
+            var st = rData[i][structCol];
+            try { if (typeof st === 'string') st = JSON.parse(st); } catch(e) {}
+            rubrics.push({
+              id: String(rData[i][idCol] || '').trim(),
+              name: String(rData[i][nameCol] || '').trim(),
+              structure: st
+            });
+          }
+        }
+      }
+    } catch(re) {
+      console.warn('[getInitialData] Could not load Rubrics: ' + re.message);
+    }
+
     return {
       success: true,
       email: email,
       assignments: assignments,
       evaluations: evaluations,
+      rubrics: rubrics,
       timestamp: Date.now()
     };
   } catch (err) {
