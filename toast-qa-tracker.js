@@ -3006,7 +3006,7 @@
                             b.style.opacity = "1";
                             b.style.cursor = "pointer";
                         });
-                        showToast("Generated and Submitted to Google Sheets!", false);
+                        showToast("Generated and Saved!", false);
                         setTimeout(function(){ overlay.remove(); }, 1500);
                     }).catch(function(e){
                         showToast("Generated, but submission failed: " + e.message, true);
@@ -3104,7 +3104,7 @@
 
     var genDropdownContainer = createElement("div", "position:relative;display:flex;align-items:stretch");
     var btnGenerate = createElement("button", sBtnGenerate);
-    btnGenerate.textContent = "Generate & Submit";
+    btnGenerate.textContent = "Generate & Save";
     btnGenerate.style.borderRadius = "5px 0 0 5px";
     btnGenerate.style.margin = "0";
 
@@ -3119,7 +3119,7 @@
     genMenu.style.cssText = "position:absolute;bottom:100%;right:0;background:white;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 -4px 14px rgba(0,0,0,0.12);display:none;flex-direction:column;min-width:160px;z-index:100001;margin-bottom:6px;overflow:hidden";
 
     var btnGenerateOnly = createElement("button");
-    btnGenerateOnly.textContent = "Generate (DOM only)";
+    btnGenerateOnly.textContent = "Generate";
     btnGenerateOnly.style.cssText = "width:100%;text-align:left;padding:10px 14px;border:none;background:white;cursor:pointer;font-size:13px;color:#334155;transition:background 0.15s;font-family:inherit;font-weight:500";
     addListener(btnGenerateOnly, "mouseenter", function(){ btnGenerateOnly.style.background = "#f8fafc"; });
     addListener(btnGenerateOnly, "mouseleave", function(){ btnGenerateOnly.style.background = "white"; });
