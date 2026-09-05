@@ -247,16 +247,166 @@ function fetchTeamAssignments(qaEmail) {
       return { success: true, message: 'No assignments assigned to ' + email, count: 0, assignments: [] };
     }
 
-    // Upsert into Supabase (resolution=merge-duplicates)
+    // Upsert assignments into Supabase (resolution=merge-duplicates)
     var upsertRes = supabaseRequest('personal_assignments', 'POST', toUpsert, 'resolution=merge-duplicates');
     if (!upsertRes.success) {
       throw new Error(upsertRes.error);
     }
 
+    var asgIdMap = {};
+    toUpsert.forEach(function(a) { asgIdMap[a.id] = a; });
+
+    // Ingest completed evaluations from team sheet into Supabase personal_evaluations
+    var evalUpsertCount = 0;
+    try {
+      var evalSheet = ss.getSheetByName('Evaluations');
+      if (evalSheet && evalSheet.getLastRow() >= 2) {
+        var evalData = evalSheet.getDataRange().getValues();
+        var evalHeaders = evalData[0].map(function(h) { return String(h || '').trim(); });
+
+        var evIdIdx = evalHeaders.indexOf('ID');
+        var evSubIdx = evalHeaders.indexOf('Submitted At');
+        if (evSubIdx === -1) evSubIdx = evalHeaders.indexOf('Date');
+        var evAgentNameIdx = evalHeaders.indexOf('Agent Name');
+        var evQaNameIdx = evalHeaders.indexOf('QA Name');
+        var evScoreIdx = evalHeaders.indexOf('Score');
+        var evRubricIdx = evalHeaders.indexOf('Rubric ID');
+        var evDetailsIdx = evalHeaders.indexOf('Evaluation Details');
+        var evAsgIdIdx = evalHeaders.indexOf('Assignment ID');
+        var evIntIdIdx = evalHeaders.indexOf('Interaction ID');
+        var evDateIntIdx = evalHeaders.indexOf('Date of Interaction');
+        var evAniIdx = evalHeaders.indexOf('Call ANI/DNIS');
+        var evCaseNoIdx = evalHeaders.indexOf('Case No.');
+        var evDurationIdx = evalHeaders.indexOf('Call Duration');
+        var evCatIdx = evalHeaders.indexOf('Case Category');
+        var evSubCatIdx = evalHeaders.indexOf('Case Sub-Category');
+        var evIssueIdx = evalHeaders.indexOf('Issue/Concern');
+        var evTypeIdx = evalHeaders.indexOf('Evaluation Type');
+        var evSnapIdx = evalHeaders.indexOf('Agent Snapshot');
+
+        // Resolve QA user display name for matching standalone evals
+        var qaDisplayName = '';
+        try {
+          var userSheet = ss.getSheetByName('Users');
+          if (userSheet && userSheet.getLastRow() >= 2) {
+            var uData = userSheet.getDataRange().getValues();
+            var uHeaders = uData[0].map(function(h) { return String(h || '').trim().toLowerCase(); });
+            var uEmailIdx = uHeaders.indexOf('email');
+            var uFnIdx = uHeaders.indexOf('first name');
+            var uLnIdx = uHeaders.indexOf('last name');
+            if (uEmailIdx !== -1) {
+              for (var ur = 1; ur < uData.length; ur++) {
+                if (String(uData[ur][uEmailIdx] || '').trim().toLowerCase() === email) {
+                  var fn = uFnIdx !== -1 ? String(uData[ur][uFnIdx] || '').trim() : '';
+                  var ln = uLnIdx !== -1 ? String(uData[ur][uLnIdx] || '').trim() : '';
+                  qaDisplayName = (fn + ' ' + ln).trim();
+                  break;
+                }
+              }
+            }
+          }
+        } catch(ue) {
+          console.warn('Could not read Users sheet for QA name: ' + ue.message);
+        }
+
+        var evalsToUpsert = [];
+        for (var er = 1; er < evalData.length; er++) {
+          var erow = evalData[er];
+          var eAsgId = evAsgIdIdx !== -1 ? String(erow[evAsgIdIdx] || '').trim() : '';
+          var eQaName = evQaNameIdx !== -1 ? String(erow[evQaNameIdx] || '').trim() : '';
+
+          var matchesAsg = eAsgId && asgIdMap[eAsgId];
+          var matchesQa = (qaDisplayName && eQaName.toLowerCase() === qaDisplayName.toLowerCase()) || (email && eQaName.toLowerCase().includes(email));
+
+          if (matchesAsg || matchesQa) {
+            var matchedAsg = matchesAsg ? asgIdMap[eAsgId] : null;
+            var eId = evIdIdx !== -1 ? String(erow[evIdIdx] || '').trim() : '';
+            if (!eId) eId = 'EVL-' + (eAsgId || (Date.now() + '-' + er));
+
+            var rawSub = evSubIdx !== -1 ? erow[evSubIdx] : '';
+            var subAtIso = '';
+            if (rawSub instanceof Date) {
+              subAtIso = rawSub.toISOString();
+            } else if (rawSub) {
+              var pD = new Date(rawSub);
+              subAtIso = !isNaN(pD.getTime()) ? pD.toISOString() : String(rawSub).trim();
+            } else {
+              subAtIso = new Date().toISOString();
+            }
+
+            var eDetails = null;
+            if (evDetailsIdx !== -1 && erow[evDetailsIdx]) {
+              try {
+                eDetails = typeof erow[evDetailsIdx] === 'object' ? erow[evDetailsIdx] : JSON.parse(erow[evDetailsIdx]);
+              } catch(e) {
+                eDetails = {};
+              }
+            }
+
+            var eSnap = null;
+            if (evSnapIdx !== -1 && erow[evSnapIdx]) {
+              try {
+                eSnap = typeof erow[evSnapIdx] === 'object' ? erow[evSnapIdx] : JSON.parse(erow[evSnapIdx]);
+              } catch(e) {
+                eSnap = (matchedAsg && matchedAsg.agent_snapshot) || null;
+              }
+            } else if (matchedAsg && matchedAsg.agent_snapshot) {
+              eSnap = matchedAsg.agent_snapshot;
+            }
+
+            var agentName = evAgentNameIdx !== -1 ? String(erow[evAgentNameIdx] || '').trim() : ((matchedAsg && matchedAsg.agent_name) || '');
+            var agentEmail = (matchedAsg && matchedAsg.agent_email) || '';
+            if (!agentEmail && eSnap && (eSnap.toasttabEmail || eSnap.email)) {
+              agentEmail = String(eSnap.toasttabEmail || eSnap.email).trim().toLowerCase();
+            }
+
+            evalsToUpsert.push({
+              id: eId,
+              assignment_id: eAsgId || null,
+              submitted_at: subAtIso,
+              interaction_id: evIntIdIdx !== -1 ? String(erow[evIntIdIdx] || '').trim() : '',
+              qa_email: email,
+              qa_name: eQaName || qaDisplayName || email,
+              agent_email: agentEmail,
+              agent_name: agentName,
+              score: evScoreIdx !== -1 && erow[evScoreIdx] !== '' ? Number(erow[evScoreIdx]) : null,
+              evaluation_type: evTypeIdx !== -1 ? String(erow[evTypeIdx] || 'Manual Audit').trim() : ((matchedAsg && matchedAsg.evaluation_type) || 'Manual Audit'),
+              rubric_id: evRubricIdx !== -1 ? String(erow[evRubricIdx] || '').trim() : ((matchedAsg && matchedAsg.rubric_id) || ''),
+              call_duration: evDurationIdx !== -1 ? String(erow[evDurationIdx] || '').trim() : '',
+              case_no: evCaseNoIdx !== -1 ? String(erow[evCaseNoIdx] || '').trim() : '',
+              call_ani_dnis: evAniIdx !== -1 ? String(erow[evAniIdx] || '').trim() : '',
+              date_of_interaction: evDateIntIdx !== -1 ? String(erow[evDateIntIdx] || '').trim() : '',
+              case_category: evCatIdx !== -1 ? String(erow[evCatIdx] || '').trim() : '',
+              case_sub_category: evSubCatIdx !== -1 ? String(erow[evSubCatIdx] || '').trim() : '',
+              issue_concern: evIssueIdx !== -1 ? String(erow[evIssueIdx] || '').trim() : '',
+              evaluation_details: eDetails || {},
+              agent_snapshot: eSnap || {},
+              synced_to_sheet: true,
+              sheet_row_id: eId,
+              synced_at: subAtIso,
+              created_at: subAtIso
+            });
+          }
+        }
+
+        if (evalsToUpsert.length > 0) {
+          var evUpsertRes = supabaseRequest('personal_evaluations', 'POST', evalsToUpsert, 'resolution=merge-duplicates');
+          if (evUpsertRes.success) {
+            evalUpsertCount = evalsToUpsert.length;
+          } else {
+            console.warn('Could not upsert evaluations to Supabase: ' + evUpsertRes.error);
+          }
+        }
+      }
+    } catch(evalErr) {
+      console.warn('[fetchTeamAssignments] Could not sync evaluations from team sheet: ' + evalErr.message);
+    }
+
     return {
       success: true,
-      message: 'Successfully fetched ' + toUpsert.length + ' assignments from team sheet',
+      message: 'Successfully fetched ' + toUpsert.length + ' assignments' + (evalUpsertCount > 0 ? (' and ' + evalUpsertCount + ' completed evaluations') : '') + ' from team sheet',
       count: toUpsert.length,
+      evalCount: evalUpsertCount,
       assignments: toUpsert
     };
   } catch (err) {

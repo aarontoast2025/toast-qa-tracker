@@ -2267,13 +2267,11 @@
                         populateEvaluationRecord(mapped, asg);
                         return;
                     }
-                    if (inpInteractionId.value) {
-                        checkExistingRecord();
-                    }
+                    checkExistingRecord({ assignmentId: asg.id, assignment: asg });
                 })
                 .catch(function(err){
                     console.warn("Supabase check_existing error:", err);
-                    if (inpInteractionId.value) checkExistingRecord();
+                    checkExistingRecord({ assignmentId: asg.id, assignment: asg });
                 })
                 .finally(function(){ hideLoading(); });
             } else {
@@ -2945,7 +2943,39 @@
             })
             .then(function(result){
                 if(result.success && result.data) {
-                    populateEvaluationRecord(result.data);
+                    populateEvaluationRecord(result.data, params.assignment);
+
+                    // Auto-mirror fetched evaluation to Supabase personal_evaluations
+                    var sKey = SUPABASE_KEY || storage.get('supabase_key', DEFAULT_SUPABASE_KEY);
+                    if (sKey && result.data) {
+                        var d = result.data;
+                        var supRec = {
+                            id: d.id || ('EVL-' + (d.assignmentId || Date.now())),
+                            assignment_id: d.assignmentId || asgId || null,
+                            submitted_at: d.submittedAtUtc || d.submittedAt || new Date().toISOString(),
+                            interaction_id: d.interactionId || iId || '',
+                            qa_email: QA_EMAIL || (params.assignment && params.assignment.qaEmail) || '',
+                            qa_name: d.qaName || currentQaDisplayName || '',
+                            agent_email: d.agentEmail || (params.assignment && params.assignment.agentEmail) || '',
+                            agent_name: d.agentName || (params.assignment && params.assignment.agentName) || '',
+                            score: d.score !== undefined && d.score !== null ? Number(d.score) : null,
+                            evaluation_type: d.evaluationType || (params.assignment && params.assignment.evaluationType) || 'Manual Audit',
+                            rubric_id: d.rubricId || (params.assignment && params.assignment.rubricId) || '',
+                            call_duration: d.callDuration || '',
+                            case_no: d.caseNo || '',
+                            call_ani_dnis: d.callAniDnis || '',
+                            date_of_interaction: d.dateOfInteraction || '',
+                            case_category: d.caseCategory || '',
+                            case_sub_category: d.caseSubCategory || '',
+                            issue_concern: d.issueConcern || '',
+                            evaluation_details: d.details || d.evaluationDetails || {},
+                            agent_snapshot: d.agentSnapshot || (params.assignment && params.assignment.agentSnapshot) || {},
+                            synced_to_sheet: true,
+                            sheet_row_id: d.id || '',
+                            synced_at: d.submittedAtUtc || new Date().toISOString()
+                        };
+                        supabaseFetch('personal_evaluations', 'POST', supRec, 'resolution=merge-duplicates').catch(function(){});
+                    }
                 } else {
                     duplicateWarningBox.style.display = "none";
                     duplicateWarningBox.innerHTML = "";
