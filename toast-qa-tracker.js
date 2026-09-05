@@ -2296,47 +2296,47 @@
         var month = parseInt(parts[1], 10) - 1; // 0-indexed
 
         var monthKey = year + '-' + month;
-        idb.get('month_' + monthKey).then(function(cachedMonth){
-            if (!cachedMonth && API_BASE_URL) {
-                // Fetch this month on-demand (past or future)
-                showLoading("Fetching assignments for " + selDate + "...");
-                apiGet(API_BASE_URL, {
-                    action: 'get_month_data',
-                    year: year,
-                    month: month + 1,
-                    qa_email: QA_EMAIL
-                })
-                .then(function(mRes){
-                    if (mRes.success && Array.isArray(mRes.assignments)) {
-                        idb.set('month_' + monthKey, mRes.assignments);
-                        // Merge into globalAssignments
-                        mRes.assignments.forEach(function(ma){
-                            if (!globalAssignments.some(function(ga){ return ga.id === ma.id; })) {
-                                globalAssignments.push(ma);
-                            }
-                        });
-                        updateAgentDropdown();
-                        handleAgentSelectionChange(selAgent.selectedOptions[0]);
-                        showToast("Loaded assignments for " + selDate, false);
-                    }
-                })
-                .catch(function(){})
-                .finally(function(){ hideLoading(); });
-            }
-        });
+        var activeSupabaseKey = SUPABASE_KEY || storage.get('supabase_key', '');
+        if (!activeSupabaseKey && !cachedMonth && API_BASE_URL) {
+            // Fetch this month on-demand (past or future) from GAS
+            showLoading("Fetching assignments for " + selDate + "...");
+            apiGet(API_BASE_URL, {
+                action: 'get_month_data',
+                year: year,
+                month: month + 1,
+                qa_email: QA_EMAIL
+            })
+            .then(function(mRes){
+                if (mRes.success && Array.isArray(mRes.assignments)) {
+                    idb.set('month_' + monthKey, mRes.assignments);
+                    // Merge into globalAssignments
+                    mRes.assignments.forEach(function(ma){
+                        if (!globalAssignments.some(function(ga){ return ga.id === ma.id; })) {
+                            globalAssignments.push(ma);
+                        }
+                    });
+                    updateAgentDropdown();
+                    handleAgentSelectionChange(selAgent.selectedOptions[0]);
+                    showToast("Loaded assignments for " + selDate, false);
+                }
+            })
+            .catch(function(){})
+            .finally(function(){ hideLoading(); });
+        }
     });
 
-    // --- Save to Google Sheets API ---
+    // --- Save to Personal Supabase Cloud or Google Sheets API ---
     var saveRecord = function(targetStatus) {
         targetStatus = targetStatus || 'Completed';
         if (!selectedAssignmentId && (!selAgent || !selAgent.value)) {
             showToast("Please select an Agent first!", true);
             return Promise.reject(new Error("No agent selected"));
         }
-        if (!API_BASE_URL) {
-            showToast("API URL not configured! Open ⚙️ Settings", true);
+        var activeSupabaseKey = SUPABASE_KEY || storage.get('supabase_key', '');
+        if (!activeSupabaseKey && !API_BASE_URL) {
+            showToast("Supabase not configured! Open ⚙️ Settings", true);
             showSettingsModal();
-            return Promise.reject(new Error("API URL not configured"));
+            return Promise.reject(new Error("Database not configured"));
         }
 
         // Build Section-based Evaluation Details:
@@ -3123,16 +3123,7 @@
         lblKey.textContent = "Your Gemini API Key (from Google AI Studio)";
         grpKey.appendChild(lblKey);
 
-        // IMPORTANT: use QA_EMAIL directly (not selEmail.value) for the initial lookup
-        // because selEmail.value may be empty before the element is attached to the DOM.
-        var openingEmail = (QA_EMAIL || '').trim().toLowerCase();
-        var openingUserObj = (globalUsers && globalUsers.length > 0 && openingEmail)
-            ? globalUsers.find(function(u){ return (u.email || '').toLowerCase() === openingEmail; })
-            : null;
-        var initialKey = openingUserObj ? (openingUserObj.geminiApiKey || '') : '';
-        if (!inpApiUrl.value && openingUserObj && openingUserObj.webAppUrl) {
-            inpApiUrl.value = openingUserObj.webAppUrl;
-        }
+        var initialKey = GEMINI_API_KEY || storage.get('gemini_key', '');
 
         var inpKey = createElement("input", sInput);
         inpKey.placeholder = "Paste your AIzaSy... key";
@@ -3192,40 +3183,9 @@
         grpKey.appendChild(wrapKey);
 
         var keyHelp = createElement("div", "font-size:11px;color:#94a3b8;margin-top:3px;");
-        keyHelp.textContent = "Saved securely in the database under your user profile.";
+        keyHelp.textContent = "Saved securely in Supabase cloud (personal_settings) and local browser storage.";
         grpKey.appendChild(keyHelp);
         pBody.appendChild(grpKey);
-
-        // When QA Account changes in dropdown: update API key & name from globalUsers
-        addListener(selEmail, "change", function(){
-            var chosenEmail = selEmail.value.trim().toLowerCase();
-            if (chosenEmail && globalUsers && globalUsers.length > 0) {
-                var chosenUser = globalUsers.find(function(u){ return (u.email || '').toLowerCase() === chosenEmail; });
-                if (chosenUser) {
-                    if (chosenUser.firstName) qaFirstName = chosenUser.firstName;
-                    if (chosenUser.webAppUrl) {
-                        inpApiUrl.value = chosenUser.webAppUrl;
-                    }
-                    applyKeyToUI(chosenUser.geminiApiKey || '');
-                    if (chosenUser.geminiModel) {
-                        selModel.value = chosenUser.geminiModel;
-                    }
-                    if (chosenUser.aiInstructions) {
-                        var parsedUserInstr = typeof chosenUser.aiInstructions === 'object' ? chosenUser.aiInstructions : null;
-                        if (!parsedUserInstr && typeof chosenUser.aiInstructions === 'string' && chosenUser.aiInstructions.trim()) {
-                            try { parsedUserInstr = JSON.parse(chosenUser.aiInstructions); } catch(e) {}
-                        }
-                        if (parsedUserInstr && parsedUserInstr.general) {
-                            txtSettingsAiInstr.value = parsedUserInstr.general;
-                        }
-                    }
-                } else {
-                    applyKeyToUI('');
-                }
-            } else {
-                applyKeyToUI('');
-            }
-        });
 
         // 3. Gemini Model Selector (dropdown populated from globalGeminiModels, in-field icon 🤖)
         var grpModel = createElement("div");
@@ -3451,56 +3411,6 @@
                     showToast("Loaded " + globalAssignments.length + " assignments from Supabase!", false);
                 }
             });
-
-            // If API_BASE_URL is not set or domain-restricted without direct access, skip slow GAS polling
-            if (!API_BASE_URL || API_BASE_URL.indexOf('/a/macros/') !== -1) {
-                hideLoading();
-                return;
-            }
-
-            // 3. Background sync with Google Apps Script if accessible
-            apiGet(API_BASE_URL, { action: 'check_sync' })
-                .then(function(syncData){
-                    if(!syncData.success) throw new Error(syncData.error || "Sync check failed");
-
-                    var lastTs = storage.get('last_sync_ts', '');
-                    var currentTs = syncData.rubricsTimestamp + "_" +
-                                    syncData.feedbackTimestamp + "_" +
-                                    (syncData.usersTimestamp || '') + "_" +
-                                    syncData.assignmentsTimestamp + "_" +
-                                    (syncData.settingsTimestamp || '');
-
-                    if (!forceRefresh && cached && lastTs === currentTs) {
-                        console.log("Toast QA Tool: Cache is up-to-date.");
-                        hideLoading();
-                        return;
-                    }
-
-                    apiGet(API_BASE_URL, {
-                        action: 'get_init_data',
-                        qa_email: QA_EMAIL
-                    })
-                    .then(function(data){
-                        if(!data.success) throw new Error(data.error || "Failed to fetch data");
-                        idb.set('cached_payload', data);
-                        storage.set('last_sync_ts', currentTs);
-                        if (data.rubrics && data.rubrics.length > 0) allRubrics = data.rubrics;
-                        if (data.feedbackChips) globalFeedbackTags = data.feedbackChips;
-                        if (data.feedbackGeneral) globalFeedbackGeneral = data.feedbackGeneral;
-                        if (data.users) globalUsers = data.users;
-                        if (data.evalTypes) { globalEvalTypes = data.evalTypes; updateEvalTypesDropdown(); }
-                        if (data.geminiModels) globalGeminiModels = data.geminiModels;
-                        updateAgentDropdown();
-                    })
-                    .catch(function(err){
-                        console.warn("GAS init data fetch:", err);
-                    })
-                    .finally(function(){ hideLoading(); });
-                })
-                .catch(function(err){
-                    console.warn("GAS check_sync error:", err);
-                    hideLoading();
-                });
         });
     };
 
