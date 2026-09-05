@@ -633,8 +633,57 @@ function resolveLineItemCorrectness(q, sn) {
   return true;
 }
 
+// Helper: Resolve ordered section names from rubric structures to avoid arbitrary JSON key ordering
+function getRubricSectionOrder(rubricId) {
+  var order = [];
+  var rubrics = state.rubrics || [];
+  var targetRubric = null;
+
+  if (rubricId) {
+    targetRubric = rubrics.find(function(r) { return String(r.id) === String(rubricId); });
+  }
+  if (!targetRubric && rubrics.length > 0) {
+    targetRubric = rubrics[0];
+  }
+
+  function addSections(r) {
+    if (!r) return;
+    var struct = r.structure;
+    if (typeof struct === 'string') {
+      try { struct = JSON.parse(struct); } catch(e) { struct = null; }
+    }
+    var secs = Array.isArray(struct) ? struct : (struct && struct.sections ? struct.sections : []);
+    secs.forEach(function(sec) {
+      var name = (sec.name || sec.title || '').trim();
+      if (name && !order.some(function(o) { return o.toLowerCase() === name.toLowerCase(); })) {
+        order.push(name);
+      }
+    });
+  }
+
+  if (targetRubric) addSections(targetRubric);
+  rubrics.forEach(addSections);
+
+  // Fallback default order for standard Toast QA sections
+  var defaultSections = [
+    'Knowledgeable & effective problem-solving',
+    'Empathy & rapport',
+    'Responsive & consistent interactions',
+    'Personalization',
+    'Customer Handling',
+    'Troubleshooting & Process'
+  ];
+  defaultSections.forEach(function(name) {
+    if (!order.some(function(o) { return o.toLowerCase() === name.toLowerCase(); })) {
+      order.push(name);
+    }
+  });
+
+  return order;
+}
+
 // Render structured rubric scoresheet with section cards, points badges, and feedback panels
-function renderRubricScoresheetHtml(details) {
+function renderRubricScoresheetHtml(details, rubricId) {
   if (!details) return '<p class="text-muted small fst-italic">No rubric details recorded.</p>';
   if (typeof details === 'string') {
     try { details = JSON.parse(details); } catch(e) { return '<p class="text-muted small fst-italic">No rubric details recorded.</p>'; }
@@ -682,21 +731,69 @@ function renderRubricScoresheetHtml(details) {
     }
   }
 
+  var rubricSectionOrder = getRubricSectionOrder(rubricId);
   var secKeys = Object.keys(sections);
   if (secKeys.length === 0) {
     return '<p class="text-muted small fst-italic">No rubric details recorded.</p>';
   }
 
+  // Sort sections according to the canonical rubric section sequence
+  if (rubricSectionOrder.length > 0) {
+    secKeys.sort(function(a, b) {
+      var aNorm = a.trim().toLowerCase();
+      var bNorm = b.trim().toLowerCase();
+      var idxA = rubricSectionOrder.findIndex(function(s) { return s.toLowerCase() === aNorm; });
+      var idxB = rubricSectionOrder.findIndex(function(s) { return s.toLowerCase() === bNorm; });
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+  }
+
+  // Find target rubric object for question ordering
+  var targetRubricObj = null;
+  if (rubricId) {
+    targetRubricObj = (state.rubrics || []).find(function(r) { return String(r.id) === String(rubricId); });
+  }
+  if (!targetRubricObj && state.rubrics && state.rubrics.length > 0) {
+    targetRubricObj = state.rubrics[0];
+  }
+
   var html = '<div class="card border-0 bg-light mb-4 shadow-sm" style="border-radius: 12px; overflow: hidden;">' +
     '<div class="card-header bg-light-orange-subtle py-2.5 px-3 border-0 d-flex justify-content-between align-items-center">' +
-      '<span class="fw-bold text-orange small"><i class="bi bi-card-checklist me-1.5"></i>Rubric Scoresheet</span>' +
+      '<span class="fw-bold text-orange small"><i class="bi bi-card-checklist me-2"></i> Rubric Scoresheet</span>' +
       '<span class="badge bg-white text-orange border border-orange-subtle rounded-pill px-2.5 py-1 small fw-bold">' + secKeys.length + ' Section' + (secKeys.length > 1 ? 's' : '') + '</span>' +
     '</div>' +
     '<div class="card-body p-3 bg-white border-top">';
 
   var sIdx = 0;
   secKeys.forEach(function(sn) {
-    var items = sections[sn] || [];
+    var items = (sections[sn] || []).slice();
+
+    // Sort items within section according to canonical rubric item order if available
+    if (targetRubricObj) {
+      var struct = targetRubricObj.structure;
+      if (typeof struct === 'string') {
+        try { struct = JSON.parse(struct); } catch(e) {}
+      }
+      var rSecs = Array.isArray(struct) ? struct : (struct && struct.sections ? struct.sections : []);
+      var matchedSec = rSecs.find(function(s) { return (s.name || s.title || '').trim().toLowerCase() === sn.trim().toLowerCase(); });
+      if (matchedSec && Array.isArray(matchedSec.items)) {
+        var rItemOrder = matchedSec.items.map(function(it) { return (it.question || it.title || it.shortName || '').trim().toLowerCase(); });
+        items.sort(function(itemA, itemB) {
+          var qA = (itemA.question || itemA.title || itemA.shortName || '').trim().toLowerCase();
+          var qB = (itemB.question || itemB.title || itemB.shortName || '').trim().toLowerCase();
+          var iA = rItemOrder.indexOf(qA);
+          var iB = rItemOrder.indexOf(qB);
+          if (iA !== -1 && iB !== -1) return iA - iB;
+          if (iA !== -1) return -1;
+          if (iB !== -1) return 1;
+          return 0;
+        });
+      }
+    }
+
     html += '<div class="mb-3">' +
       '<h6 class="fw-bold text-dark border-bottom pb-1.5 mb-2 small text-uppercase d-flex justify-content-between align-items-center">' +
         '<span><i class="bi bi-folder2-open text-orange me-2"></i> ' + escapeHtml(sn) + '</span>' +
@@ -774,7 +871,7 @@ function viewDetails(evalId) {
   // 1. Top Details Card
   var content = '<div class="card border-0 bg-light mb-4 shadow-sm" style="border-radius: 12px; overflow: hidden;">' +
     '<div class="card-header bg-orange text-white py-2 px-3 border-0">' +
-      '<span class="fw-bold small"><i class="bi bi-info-circle me-1.5"></i>Interaction Details</span>' +
+      '<span class="fw-bold small"><i class="bi bi-info-circle me-2"></i> Interaction Details</span>' +
     '</div>' +
     '<div class="card-body p-3 bg-white border-top">' +
       '<div class="row g-3 mb-2">' +
@@ -815,19 +912,20 @@ function viewDetails(evalId) {
   // 2. Issue / Concern (Placed BEFORE the Rubric Scoresheet as requested)
   if (ev.issue_concern) {
     content += '<div class="mb-4">' +
-      '<label class="form-label small fw-bold text-muted d-block mb-1 text-uppercase"><i class="bi bi-exclamation-triangle me-1 text-orange"></i>Issue / Concern</label>' +
+      '<label class="form-label small fw-bold text-muted d-block mb-1 text-uppercase"><i class="bi bi-exclamation-triangle me-2 text-orange"></i> Issue / Concern</label>' +
       '<div class="bg-light p-3 rounded border text-secondary" style="white-space: pre-wrap; font-size: 0.85rem; line-height: 1.5;">' + escapeHtml(ev.issue_concern) + '</div>' +
     '</div>';
   }
 
   // 3. Rubric Breakdown Scoresheet
   var rawDetails = ev.evaluation_details || ev.evaluationDetails || ev.details;
-  content += renderRubricScoresheetHtml(rawDetails);
+  var rubricId = ev.rubric_id || ev.rubricId || (asg && (asg.rubric_id || asg.rubricId)) || '';
+  content += renderRubricScoresheetHtml(rawDetails, rubricId);
 
   // 4. Coaching Comments / Notes
   if (ev.comments) {
     content += '<div class="mb-3">' +
-      '<label class="form-label small fw-bold text-muted d-block mb-1 text-uppercase"><i class="bi bi-chat-quote me-1 text-orange"></i>Coaching Comments / Notes</label>' +
+      '<label class="form-label small fw-bold text-muted d-block mb-1 text-uppercase"><i class="bi bi-chat-quote me-2 text-orange"></i> Coaching Comments / Notes</label>' +
       '<div class="bg-light p-3 rounded border text-secondary" style="white-space: pre-wrap; font-size: 0.85rem; line-height: 1.5;">' + escapeHtml(ev.comments) + '</div>' +
     '</div>';
   }
