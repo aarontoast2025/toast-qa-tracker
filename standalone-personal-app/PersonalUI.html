@@ -1,0 +1,206 @@
+<!-- Personal Evaluations View - Exact Clone of EvaluationsUI with Supabase & Google Sheet Sync Engine -->
+<div id="queueViewContainer">
+  
+  <!-- Counters Dashboard Row -->
+  <div class="row g-3 mb-4 align-items-stretch">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm card-counter p-3 h-100" style="border-bottom: 3px solid #6c757d !important;">
+        <div class="card-counter-header text-center">
+          <div class="text-muted small fw-bold mb-1"><i class="bi bi-list-task me-1"></i>TOTAL ASSIGNED</div>
+          <h3 class="fw-bold mb-0 text-dark" id="countTotal">0</h3>
+        </div>
+        <div class="card-breakdown mt-2 pt-2 border-top text-muted" id="breakdownTotal">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span><i class="bi bi-calendar-event me-1 text-secondary"></i>View Period</span>
+            <span class="fw-semibold text-dark" id="totalPeriodLabel">Day View</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-check2-all me-1 text-secondary"></i>Evaluated</span>
+            <span class="fw-semibold text-dark" id="totalEvaluatedLabel">0 / 0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm card-counter p-3 h-100" style="border-bottom: 3px solid #ffc107 !important;">
+        <div class="card-counter-header text-center">
+          <div class="text-warning small fw-bold mb-1"><i class="bi bi-hourglass-split me-1"></i>PENDING</div>
+          <h3 class="fw-bold mb-0 text-dark" id="countPending">0</h3>
+        </div>
+        <div class="card-breakdown mt-2 pt-2 border-top text-muted" id="breakdownPending">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="d-flex align-items-center"><span class="badge-dot bg-warning"></span>Pending</span>
+            <span class="fw-semibold text-dark" id="countSubPending">0</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="d-flex align-items-center"><span class="badge-dot bg-danger"></span>In Dispute</span>
+            <span class="fw-semibold text-dark" id="countSubDispute">0</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="d-flex align-items-center"><span class="badge-dot" style="background-color: #6f42c1;"></span>Approval Req.</span>
+            <span class="fw-semibold text-dark" id="countSubApproval">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm card-counter p-3 h-100" style="border-bottom: 3px solid #28a745 !important;">
+        <div class="card-counter-header text-center">
+          <div class="text-success small fw-bold mb-1"><i class="bi bi-check2-circle me-1"></i>COMPLETED</div>
+          <h3 class="fw-bold mb-0 text-dark" id="countCompleted">0</h3>
+        </div>
+        <div class="card-breakdown mt-2 pt-2 border-top text-muted" id="breakdownCompleted">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="d-flex align-items-center"><span class="badge-dot bg-success"></span>Completed</span>
+            <span class="fw-semibold text-dark" id="countSubCompleted">0</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="d-flex align-items-center"><span class="badge-dot bg-info"></span>Dispute Resolved</span>
+            <span class="fw-semibold text-dark" id="countSubDisputeResolved">0</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="d-flex align-items-center"><span class="badge-dot" style="background-color: #6f42c1;"></span>Approved</span>
+            <span class="fw-semibold text-dark" id="countSubApproved">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm card-counter p-3 h-100" style="border-bottom: 3px solid var(--toast-orange) !important;">
+        <div class="card-counter-header text-center">
+          <div class="text-orange small fw-bold mb-1"><i class="bi bi-percent me-1"></i>COMPLETION RATE</div>
+          <h3 class="fw-bold mb-0 text-dark" id="countRate">0%</h3>
+        </div>
+        <div class="card-breakdown mt-2 pt-2 border-top text-muted" id="breakdownRate">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="d-flex align-items-center"><span class="badge-dot bg-success"></span>Completed</span>
+            <span class="fw-semibold text-dark" id="rateSubCompleted">0% (0)</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="d-flex align-items-center"><span class="badge-dot bg-info"></span>Dispute Resolved</span>
+            <span class="fw-semibold text-dark" id="rateSubDisputeResolved">0% (0)</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="d-flex align-items-center"><span class="badge-dot" style="background-color: #6f42c1;"></span>Approved</span>
+            <span class="fw-semibold text-dark" id="rateSubApproved">0% (0)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Card Table -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card shadow-sm border-0" style="border-radius: 12px;">
+        <div class="card-header bg-white border-0 pt-4 px-4 pb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <h5 class="fw-bold mb-0 text-dark d-flex align-items-center">
+            <i class="bi bi-journal-text text-orange me-2"></i>
+            <span>My Evaluation Queue (Personal Staging)</span>
+          </h5>
+
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <!-- Search by Interaction ID -->
+            <div class="input-group input-group-sm" style="width: 220px;">
+              <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+              <input type="text" id="searchInteractionId" class="form-control border-start-0 ps-0" placeholder="Search Interaction ID..." oninput="handleSearch(this.value)" autocomplete="off">
+              <button class="btn btn-outline-secondary border-start-0 d-none" id="clearSearchBtn" type="button" onclick="clearSearch()"><i class="bi bi-x"></i></button>
+            </div>
+
+            <!-- Refresh Button -->
+            <button type="button" class="btn btn-white border shadow-sm btn-action-icon" onclick="manualRefresh()" id="btnManualRefresh" title="Refresh local data">
+              <i class="bi bi-arrow-clockwise text-secondary fs-6"></i>
+            </button>
+
+            <!-- Fetch from Sheet Button -->
+            <button type="button" class="btn btn-white border shadow-sm btn-action-icon" onclick="fetchSheetAssignments()" id="btnFetchSheet" title="Fetch Sheet Assignments">
+              <i class="bi bi-cloud-arrow-down-fill text-primary fs-6"></i>
+            </button>
+
+            <!-- Sync All Pending to Sheet -->
+            <button type="button" class="btn btn-white border shadow-sm btn-action-icon" onclick="syncAllPending()" id="btnSyncAll" title="Sync All to Team Sheet">
+              <i class="bi bi-cloud-upload-fill text-orange fs-6"></i>
+            </button>
+
+            <!-- Day / Week / Month Switcher -->
+            <div class="custom-tab-container p-1 rounded-pill border d-inline-flex shadow-sm">
+              <button type="button" class="btn btn-custom-tab px-3 py-1 active" id="viewDailyBtn" onclick="setViewType('daily')">
+                <i class="bi bi-calendar-day me-1"></i>Day
+              </button>
+              <button type="button" class="btn btn-custom-tab px-3 py-1" id="viewWeeklyBtn" onclick="setViewType('weekly')">
+                <i class="bi bi-calendar-week me-1"></i>Week
+              </button>
+              <button type="button" class="btn btn-custom-tab px-3 py-1" id="viewMonthlyBtn" onclick="setViewType('monthly')">
+                <i class="bi bi-calendar-month me-1"></i>Month
+              </button>
+            </div>
+
+            <!-- Date Navigator -->
+            <div class="d-flex align-items-center bg-white border rounded-pill shadow-sm overflow-hidden" style="min-width: 230px; height: 36px;">
+              <button class="btn btn-link text-orange border-0 px-3 py-1 h-100" id="prevDateBtn" onclick="navigateDate(-1)"><i class="bi bi-chevron-left"></i></button>
+              <div class="flex-grow-1 text-center py-1 px-1 fw-bold text-orange no-select hover-bg-light" id="dateFilterDisplay" onclick="jumpToCurrent()" style="cursor: pointer; font-size: 0.85rem;">
+                Loading...
+              </div>
+              <button class="btn btn-link text-orange border-0 px-3 py-1 h-100" id="nextDateBtn" onclick="navigateDate(1)"><i class="bi bi-chevron-right"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table View -->
+        <div class="card-body p-0 border-top mt-2">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr class="small text-muted text-uppercase" style="font-size: 0.75rem;">
+                  <th class="ps-4 py-3" style="width: 100px;"><i class="bi bi-hash me-1"></i>EID</th>
+                  <th class="py-3"><i class="bi bi-person me-1"></i>Agent Name / Email</th>
+                  <th class="py-3"><i class="bi bi-hash me-1"></i>Interaction ID</th>
+                  <th class="py-3"><i class="bi bi-geo-alt me-1"></i>Location</th>
+                  <th class="py-3"><i class="bi bi-person-badge me-1"></i>Supervisor</th>
+                  <th class="py-3"><i class="bi bi-stars me-1"></i>Skill</th>
+                  <th class="py-3"><i class="bi bi-headset me-1"></i>Channel</th>
+                  <th class="py-3"><i class="bi bi-award me-1"></i>Role</th>
+                  <th class="py-3 text-center" style="width: 140px;"><i class="bi bi-shield-check me-1"></i>Status</th>
+                  <th class="py-3 text-center" style="width: 90px;"><i class="bi bi-trophy me-1"></i>Score</th>
+                  <th class="text-end pe-4 py-3" style="width: 180px;"><i class="bi bi-gear me-1"></i>Action</th>
+                </tr>
+              </thead>
+              <tbody id="evaluationTableBody">
+                <tr>
+                  <td colspan="11" class="text-center py-5">
+                    <div class="spinner-border text-orange spinner-border-sm mb-2" role="status"></div>
+                    <p class="mb-0 text-muted small">Loading assignments & evaluations...</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- View Evaluation Details Modal -->
+<div class="modal fade" id="viewEvalDetailsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      <div class="modal-header border-0 pb-0 pt-4 px-4">
+        <div>
+          <h5 class="modal-title fw-bold text-dark" id="detailsModalAgentName">Evaluation Details</h5>
+          <p class="text-muted small mb-0" id="detailsModalSubtitle">Submitted review breakdown</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body px-4 py-3" id="detailsModalContent">
+        <!-- Dynamic Content Injected Here -->
+      </div>
+      <div class="modal-footer border-0 px-4 pb-4 pt-2">
+        <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
