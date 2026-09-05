@@ -6,6 +6,9 @@
     var DEFAULT_API_URL = 'https://script.google.com/a/macros/toasttab.com/s/AKfycbzlPOPv6XatB7n56GnFZJsZWpjn9_pgnlbgYyuFgLQgjaXY827AwxBlyR7njYqCcnjCng/exec';
     var DEFAULT_API_TOKEN = 'toast_qa_bookmarklet_2026';
     var DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+    var DEFAULT_SUPABASE_URL = 'https://juevdlfhpgiedfjghrkk.supabase.co';
+    var SUPABASE_URL = DEFAULT_SUPABASE_URL;
+    var SUPABASE_KEY = '';
 
     var DEFAULT_FALLBACK_RUBRIC = {
         id: 'toast-standard-qa',
@@ -230,6 +233,38 @@
 
     var API_BASE_URL = normalizeApiUrl(storage.get('api_url', DEFAULT_API_URL));
     var API_TOKEN = storage.get('api_token', DEFAULT_API_TOKEN);
+    SUPABASE_URL = storage.get('supabase_url', DEFAULT_SUPABASE_URL);
+    SUPABASE_KEY = storage.get('supabase_key', '');
+
+    // Supabase REST client for cross-origin Bookmarklet operations
+    var supabaseFetch = function(endpoint, method, payload) {
+        var sUrl = (SUPABASE_URL || DEFAULT_SUPABASE_URL).replace(/\/+$/, '') + '/rest/v1/' + endpoint;
+        var sKey = SUPABASE_KEY || storage.get('supabase_key', '');
+        if (!sKey) {
+            return Promise.reject(new Error("Supabase Anon Key is not configured. Please set it in Settings."));
+        }
+        var headers = {
+            'apikey': sKey,
+            'Authorization': 'Bearer ' + sKey,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        };
+        var opts = {
+            method: method || 'GET',
+            headers: headers
+        };
+        if (payload && (method === 'POST' || method === 'PATCH' || method === 'PUT')) {
+            opts.body = JSON.stringify(payload);
+        }
+        return fetch(sUrl, opts).then(function(res) {
+            if (!res.ok) {
+                return res.text().then(function(t) {
+                    throw new Error("Supabase (" + res.status + "): " + t);
+                });
+            }
+            return res.json().catch(function(){ return []; });
+        });
+    };
     var GEMINI_API_KEY = storage.get('gemini_key', '');
     var GEMINI_MODEL = storage.get('gemini_model', DEFAULT_GEMINI_MODEL);
     var QA_EMAIL = storage.get('qa_email', '');
@@ -2055,8 +2090,9 @@
                 if (matchedAsg.rubricId) {
                     switchRubricById(matchedAsg.rubricId);
                 }
-                if (matchedAsg.evaluationType && selEvalType) {
-                    selEvalType.value = matchedAsg.evaluationType;
+                var asgEt = matchedAsg.evaluationType || matchedAsg.evaluationsType || matchedAsg.evalType;
+                if (asgEt && selEvalType) {
+                    selEvalType.value = asgEt;
                 }
                 if (matchedAsg.status === 'Completed' || matchedAsg.status === 'Partial') {
                     handleAgentSelectionChange(selAgent.selectedOptions[0]);
@@ -2099,7 +2135,7 @@
                 opt.dataset.agentName = agentLabel;
                 opt.dataset.agentEmail = a.agentEmail || "";
                 opt.dataset.asgId = a.id;
-                opt.dataset.evalType = a.evaluationType || "Standard";
+                opt.dataset.evalType = a.evaluationType || a.evaluationsType || a.evalType || "Standard";
                 opt.dataset.status = a.status || "Pending";
 
                 if (selectedAssignmentId && a.id === selectedAssignmentId) {
@@ -2124,7 +2160,7 @@
             selectedAssignmentId = selectedOpt.dataset.asgId || "";
             var asg = globalAssignments.find(function(a){ return a.id === selectedAssignmentId; });
             var rubricId = selectedOpt.dataset.rubricId || (asg && asg.rubricId) || "";
-            var asgEvalType = selectedOpt.dataset.evalType || (asg && asg.evaluationType) || "Standard";
+            var asgEvalType = selectedOpt.dataset.evalType || (asg && (asg.evaluationType || asg.evaluationsType || asg.evalType)) || "Standard";
 
             if (rubricId) switchRubricById(rubricId);
             if (asgEvalType && selEvalType) selEvalType.value = asgEvalType;
@@ -2320,7 +2356,7 @@
                 agentEmail: (selectedAsg && selectedAsg.agentEmail) || '',
                 agentSnapshot: agentSnap,
                 qaName: resolvedQaName,
-                evaluationType: (selEvalType && selEvalType.value) ? selEvalType.value : ((selectedAsg && selectedAsg.evaluationType) || 'Standard'),
+                evaluationType: (selEvalType && selEvalType.value) ? selEvalType.value : ((selectedAsg && (selectedAsg.evaluationType || selectedAsg.evaluationsType || selectedAsg.evalType)) || 'Standard'),
                 callAniDnis: selAni.value ? selAni.value.trim() : "",
                 caseNo: inpCaseNo.value.trim(),
                 callDuration: inpDuration.value.trim(),
@@ -2337,6 +2373,67 @@
                 pageUrl: window.location.href
             }
         };
+
+        var activeSupabaseKey = SUPABASE_KEY || storage.get('supabase_key', '');
+        if (activeSupabaseKey) {
+            var evalId = existingRecordId || ('EVL-' + Date.now() + '-' + Math.floor(Math.random() * 1000));
+            var supRecord = {
+                id: evalId,
+                assignment_id: selectedAssignmentId || null,
+                submitted_at: new Date().toISOString(),
+                interaction_id: inpInteractionId.value.trim(),
+                qa_email: QA_EMAIL,
+                qa_name: resolvedQaName,
+                agent_email: (selectedAsg && selectedAsg.agentEmail) || (selectedAsg && selectedAsg.agent_email) || '',
+                agent_name: resolvedAgentName,
+                score: finalScorePercentage,
+                evaluation_type: (selEvalType && selEvalType.value) ? selEvalType.value : ((selectedAsg && (selectedAsg.evaluationType || selectedAsg.evaluationsType || selectedAsg.evalType)) || 'Standard'),
+                rubric_id: (currentRubric && currentRubric.id) || '',
+                call_duration: inpDuration.value.trim(),
+                case_no: inpCaseNo.value.trim(),
+                call_ani_dnis: selAni.value ? selAni.value.trim() : "",
+                date_of_interaction: inpDateInteraction.value,
+                case_category: inpCategory.value.trim(),
+                case_sub_category: inpSubCategory.value.trim(),
+                issue_concern: txtIssue.value.trim(),
+                evaluation_details: details,
+                agent_snapshot: agentSnap,
+                synced_to_sheet: false,
+                created_at: new Date().toISOString()
+            };
+
+            return supabaseFetch('personal_evaluations', 'POST', supRecord)
+                .then(function() {
+                    existingRecordId = evalId;
+                    if (selectedAssignmentId) {
+                        supabaseFetch('personal_assignments?id=eq.' + encodeURIComponent(selectedAssignmentId), 'PATCH', {
+                            status: targetStatus,
+                            updated_at: new Date().toISOString()
+                        }).catch(function(err){ console.warn('Supabase assignment patch:', err); });
+
+                        var asg = globalAssignments.find(function(a){ return a.id === selectedAssignmentId; });
+                        if (asg) asg.status = targetStatus;
+                        updateAgentDropdown();
+                    }
+                    showToast("Saved to Personal Supabase! Ready to sync in Personal Console.", false);
+                    return true;
+                })
+                .catch(function(err) {
+                    console.warn("Supabase save failed (" + err.message + "), falling back to Apps Script API...");
+                    return apiPost(API_BASE_URL, payload).then(function(data){
+                        if(data.success) {
+                            existingRecordId = data.evaluationId || data.submission_id;
+                            if (selectedAssignmentId) {
+                                var asg = globalAssignments.find(function(a){ return a.id === selectedAssignmentId; });
+                                if (asg) asg.status = targetStatus;
+                                updateAgentDropdown();
+                            }
+                            return true;
+                        }
+                        throw new Error(data.message || data.error || "Save failed");
+                    });
+                });
+        }
 
         return apiPost(API_BASE_URL, payload)
         .then(function(data){
@@ -3017,6 +3114,57 @@
         grpApiUrl.appendChild(apiUrlHelp);
         pBody.appendChild(grpApiUrl);
 
+        // 2b. Supabase Staging Database (Personal Cloud for Stella Connect)
+        var grpSupabase = createElement("div", "border-top:1px solid #e2e8f0;padding-top:12px;margin-top:2px;");
+        var lblSupabase = createElement("label", sLabel);
+        lblSupabase.innerHTML = "<span>⚡ Supabase Staging Database (Personal Cloud)</span>";
+        grpSupabase.appendChild(lblSupabase);
+
+        var inpSupaUrl = createElement("input", sInput);
+        inpSupaUrl.placeholder = DEFAULT_SUPABASE_URL;
+        inpSupaUrl.value = storage.get('supabase_url', DEFAULT_SUPABASE_URL);
+        var wrapSupaUrl = createIconFieldWrapper("☁️", inpSupaUrl, true);
+        wrapSupaUrl.style.marginBottom = "8px";
+        grpSupabase.appendChild(wrapSupaUrl);
+
+        var inpSupaKey = createElement("input", sInput);
+        inpSupaKey.type = "password";
+        inpSupaKey.placeholder = "Paste your Supabase anon public key (eyJ...)";
+        inpSupaKey.value = storage.get('supabase_key', '');
+        var wrapSupaKey = createIconFieldWrapper("🔑", inpSupaKey, true);
+        grpSupabase.appendChild(wrapSupaKey);
+
+        var supaHelp = createElement("div", "display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:11px;color:#64748b;");
+        var supaHelpText = createElement("span");
+        supaHelpText.textContent = "Bypasses company domain restrictions on Stella.";
+        var btnTestSupa = createElement("span", "cursor:pointer;color:#2563eb;font-weight:600;text-decoration:underline;user-select:none;");
+        btnTestSupa.textContent = "Test Supabase";
+        addListener(btnTestSupa, "click", function(){
+            var testUrl = inpSupaUrl.value.trim() || DEFAULT_SUPABASE_URL;
+            var testKey = inpSupaKey.value.trim();
+            if (!testKey) {
+                showToast("Please paste your Supabase Anon Key first", true);
+                return;
+            }
+            btnTestSupa.textContent = "Testing...";
+            fetch(testUrl.replace(/\/+$/, '') + '/rest/v1/personal_assignments?select=id&limit=1', {
+                headers: { 'apikey': testKey, 'Authorization': 'Bearer ' + testKey }
+            })
+            .then(function(res){
+                btnTestSupa.textContent = "Test Supabase";
+                if (!res.ok) throw new Error("Status " + res.status);
+                showToast("Supabase connection verified!", false);
+            })
+            .catch(function(err){
+                btnTestSupa.textContent = "Test Supabase";
+                showToast("Supabase test failed: " + err.message, true);
+            });
+        });
+        supaHelp.appendChild(supaHelpText);
+        supaHelp.appendChild(btnTestSupa);
+        grpSupabase.appendChild(supaHelp);
+        pBody.appendChild(grpSupabase);
+
         // 3. Gemini API Key (with 🔑 in-field icon and ✏️ unlock/edit button)
         var grpKey = createElement("div");
         var lblKey = createElement("label", sLabel);
@@ -3217,6 +3365,16 @@
             storage.set('gemini_model', GEMINI_MODEL);
             storage.set('last_sync_ts', '');
 
+            var newSupaUrl = (inpSupaUrl.value.trim() || DEFAULT_SUPABASE_URL).replace(/\/+$/, '');
+            var newSupaKey = inpSupaKey.value.trim();
+            SUPABASE_URL = newSupaUrl;
+            SUPABASE_KEY = newSupaKey;
+            storage.set('supabase_url', newSupaUrl);
+            storage.set('supabase_key', newSupaKey);
+            if (newSupaKey) {
+                loadAssignmentsFromSupabase();
+            }
+
             updateHeaderTitle();
 
             // Save to backend database for persistence
@@ -3271,6 +3429,38 @@
         pModal.appendChild(pFooter);
         pOverlay.appendChild(pModal);
         document.body.appendChild(pOverlay);
+    };
+
+    var loadAssignmentsFromSupabase = function() {
+        var sKey = SUPABASE_KEY || storage.get('supabase_key', '');
+        var sEmail = QA_EMAIL || storage.get('qa_email', '');
+        if (!sKey || !sEmail) return Promise.resolve(false);
+        return supabaseFetch('personal_assignments?qa_email=eq.' + encodeURIComponent(sEmail) + '&status=eq.Pending&order=date.desc', 'GET')
+            .then(function(rows) {
+                if (Array.isArray(rows) && rows.length > 0) {
+                    globalAssignments = rows.map(function(r) {
+                        return {
+                            id: r.id,
+                            date: r.date,
+                            qaEmail: r.qa_email,
+                            agentEmail: r.agent_email,
+                            agentName: r.agent_name,
+                            agentSnapshot: r.agent_snapshot,
+                            rubricId: r.rubric_id,
+                            evaluationType: r.evaluation_type,
+                            status: r.status
+                        };
+                    });
+                    updateAgentDropdown();
+                    autoSelectAssignmentAndDate();
+                    return true;
+                }
+                return false;
+            })
+            .catch(function(err) {
+                console.warn('Supabase assignments fetch error:', err);
+                return false;
+            });
     };
 
     // --- Sync & Initialization Logic (Bulk Processing & Local IndexedDB Storage) ---
@@ -3432,7 +3622,13 @@
                         })
                         .catch(function(err){
                             console.error(err);
-                            showToast("Could not fetch latest sheets data: " + err.message, true);
+                            loadAssignmentsFromSupabase().then(function(loaded){
+                                if (loaded) {
+                                    showToast("Loaded " + globalAssignments.length + " assignments from Supabase!", false);
+                                } else {
+                                    showToast("Could not fetch latest sheets data: " + err.message, true);
+                                }
+                            });
                             if (!QA_EMAIL) showSettingsModal(true);
                         })
                         .finally(function(){ hideLoading(); });
@@ -3440,10 +3636,14 @@
                 .catch(function(err){
                     console.error(err);
                     hideLoading();
-                    if (!cached) {
-                        renderNoAgentSelectedPlaceholder();
-                        showToast("Loaded Toast QA Rubric (offline mode)", false);
-                    }
+                    loadAssignmentsFromSupabase().then(function(loaded){
+                        if (loaded) {
+                            showToast("Loaded " + globalAssignments.length + " assignments from Supabase!", false);
+                        } else if (!cached) {
+                            renderNoAgentSelectedPlaceholder();
+                            showToast("Loaded Toast QA Rubric (offline mode)", false);
+                        }
+                    });
                     if (!QA_EMAIL) showSettingsModal(true);
                 });
         });
